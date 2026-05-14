@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="ko" data-coderoot-disable-watch="true" data-coderoot-content-base="../content" data-coderoot-test-url="https://www.codetree.ai/ko/trails/complete/curated-cards/intro-not-written-yet/introduction">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Coderoot Missing Fixture</title>
+    <link rel="stylesheet" href="../extension/dist/styles.css">
+  </head>
+  <body>
+    <article class="flex flex-col w-full flex-1 overflow-hidden bg-white overflow-y-auto border rounded-12 relative border-[#90E5B0] rounded-tl-0">
+      <div class="flex flex-col p-32 max-md:px-12 gap-40 flex-1 bg-white">
+        <div>
+          <article class="flex flex-col mdx w-full wrap-break-word text-justify select-none">
+            <h1>아직 작성되지 않은 문제</h1>
+          </article>
+          <button type="button" role="combobox">Python3</button>
+        </div>
+        <div id="feedback" class="flex gap-x-[30px] gap-y-[10px] justify-center flex-wrap">
+          <p class="text-[12px] text-label-assistive">이 콘텐츠가 도움이 되었나요?</p>
+        </div>
+      </div>
+    </article>
+
+    <script src="../extension/dist/content-script.js"></script>
+    <script>
+      window.setTimeout(() => {
+        const block = document.querySelector("[data-coderoot-root]");
+        const toggle = document.querySelector("[data-coderoot-toggle]");
+        const edit = document.querySelector("[data-coderoot-edit]");
+        edit?.click();
+        window.setTimeout(() => {
+          const editor = document.querySelector("[data-coderoot-editor]");
+          const editorCancel = editor?.querySelector(".coderoot-side-close-button");
+          const previewCancel = document.querySelector(".coderoot-preview-cancel");
+          previewCancel?.click();
+          const restored = document.querySelector("[data-coderoot-root]");
+          document.body.dataset.coderootBlock = block ? "yes" : "no";
+          document.body.dataset.coderootStatus = restored?.dataset.coderootStatus || "";
+          document.body.dataset.coderootConceptLanguage = restored?.dataset.coderootConceptLanguage || "";
+          document.body.dataset.coderootToggle = toggle ? "yes" : "no";
+          document.body.dataset.coderootEdit = edit ? "yes" : "no";
+          document.body.dataset.coderootEditorCancel = editorCancel ? "yes" : "no";
+          document.body.dataset.coderootPreviewCancel = previewCancel ? "yes" : "no";
+          window.setTimeout(() => {
+            const restoredAfterTick = document.querySelector("[data-coderoot-root]");
+            document.body.dataset.coderootCancelRestored =
+              restoredAfterTick?.dataset.coderootStatus === "missing" && !document.querySelector('[data-coderoot-editor="true"]') ? "yes" : "no";
+          }, 0);
+        }, 220);
+      }, 500);
+    </script>
+  </body>
+</html>

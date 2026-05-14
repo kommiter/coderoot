@@ -1,0 +1,341 @@
+.coderoot-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: -8px;
+}
+
+.coderoot-info {
+  align-items: center;
+  background: #faf5ff;
+  border: 1px solid #e9d5ff;
+  border-radius: 4px;
+  color: #4c1d95;
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+}
+
+.coderoot-info-icon {
+  align-items: center;
+  color: #7c3aed;
+  display: flex;
+  flex: 0 0 auto;
+  height: 20px;
+  justify-content: center;
+  width: 20px;
+}
+
+.coderoot-info p {
+  flex: 1 1 auto;
+  font-size: 13px;
+  line-height: 1.55;
+  margin: 0;
+  min-width: 0;
+  white-space: pre-wrap;
+  word-break: keep-all;
+}
+
+.coderoot-edit-button {
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #ddd6fe;
+  border-radius: 6px;
+  color: #6d28d9;
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 13px;
+  font-weight: 800;
+  justify-content: center;
+  line-height: 1;
+  min-height: 36px;
+  min-width: 90px;
+  padding: 10px 13px;
+  transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.coderoot-edit-button:hover {
+  background: #f5f3ff;
+  border-color: #c4b5fd;
+  box-shadow: 0 8px 18px rgba(109, 40, 217, 0.12);
+}
+
+.coderoot-edit-button:focus-visible {
+  outline: 3px solid rgba(168, 85, 247, 0.32);
+  outline-offset: 2px;
+}
+
+.coderoot-edit-button-inline {
+  align-self: flex-start;
+  margin-top: 4px;
+}
+
+.coderoot-panel {
+  color: #222222;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 4px 0 2px;
+  position: relative;
+}
+
+.coderoot-panel::before {
+  content: "";
+  display: none;
+}
+
+.coderoot-meta {
+  color: #8f8f8f;
+  font-size: 12px;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.coderoot-title {
+  color: #171717;
+  font-size: 26px;
+  font-weight: 900;
+  letter-spacing: 0;
+  line-height: 1.32;
+  margin: 0;
+}
+
+.coderoot-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.coderoot-heading {
+  color: #242424;
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: 0;
+  line-height: 1.42;
+  margin: 14px 0 0;
+}
+
+.coderoot-paragraph,
+.coderoot-list,
+.coderoot-callout {
+  color: #2d2d2d;
+  font-size: 15px;
+  line-height: 1.78;
+  margin: 0;
+  word-break: keep-all;
+}
+
+.coderoot-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-left: 20px;
+}
+
+.coderoot-list li {
+  padding-left: 2px;
+}
+
+.coderoot-content code,
+.coderoot-callout code,
+.coderoot-paragraph code,
+.coderoot-list code {
+  background: #f5f3ff;
+  border: 1px solid #ddd6fe;
+  border-radius: 4px;
+  color: #5b21b6;
+  font-size: 0.92em;
+  padding: 1px 5px;
+}
+
+.coderoot-code-block {
+  background: #fafafa;
+  border: 1px solid #e4e4e7;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+}
+
+.coderoot-code-block code {
+  background: transparent;
+  border: 0;
+  color: inherit;
+  font-family: Menlo, Monaco, "Courier New", monospace;
+  font-size: 14px;
+  line-height: 1.55;
+  padding: 0;
+}
+
+.coderoot-code-block pre {
+  display: flex;
+  margin: 0;
+  overflow-x: auto;
+  padding: 12px 20px 12px 16px;
+  white-space: pre;
+  width: fit-content;
+}
+
+.coderoot-code-block .code-line {
+  display: block;
+  min-height: 21px;
+}
+
+.coderoot-copy-wrap {
+  opacity: 0;
+  position: absolute;
+  right: 4px;
+  top: 4px;
+  transition: opacity 160ms ease;
+}
+
+.coderoot-code-block:hover .coderoot-copy-wrap,
+.coderoot-copy:focus-visible {
+  opacity: 1;
+}
+
+.coderoot-copy {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: #52525b;
+  cursor: pointer;
+  display: inline-flex;
+  height: 32px;
+  justify-content: center;
+  min-width: 32px;
+  padding: 0;
+  width: 32px;
+}
+
+.coderoot-copy:hover {
+  background: #f4f4f5;
+  color: #3f3f46;
+}
+
+.coderoot-copy svg {
+  height: 20px;
+  width: 20px;
+}
+
+.coderoot-copy[data-copied="true"] {
+  color: #22c55e;
+}
+
+.coderoot-code-block .token.keyword,
+.coderoot-code-block .token.directive,
+.coderoot-code-block .token.directive-hash {
+  color: #cf222e;
+}
+
+.coderoot-code-block .token.string {
+  color: #0a3069;
+}
+
+.coderoot-code-block .token.number {
+  color: #0550ae;
+}
+
+.coderoot-code-block .token.function {
+  color: #8250df;
+}
+
+.coderoot-code-block .token.operator {
+  color: #0969da;
+}
+
+.coderoot-code-block .token.comment {
+  color: #6e7781;
+}
+
+.coderoot-code-block .token.punctuation {
+  color: #24292f;
+}
+
+.coderoot-callout {
+  background: #faf5ff;
+  border-left: 3px solid #8b5cf6;
+  border-radius: 6px;
+  color: #3b2f61;
+  padding: 12px 14px;
+}
+
+.coderoot-content a {
+  color: #6d28d9;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.coderoot-missing-panel {
+  background: #fafafa;
+  border: 1px dashed #d4d4d4;
+  border-radius: 8px;
+  color: #3d3d3d;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+}
+
+.coderoot-missing-badge {
+  color: #8f8f8f;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.coderoot-missing-title {
+  color: #303030;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.coderoot-missing-text {
+  color: #666666;
+  font-size: 13px;
+  line-height: 1.65;
+  margin: 0;
+}
+
+.coderoot-article {
+  position: relative;
+}
+
+.coderoot-card-expanded {
+  background: inherit;
+}
+
+.coderoot-live-preview {
+  border-top: 1px solid #e4e4e7;
+  margin-top: 0;
+  padding-top: 12px;
+}
+
+.coderoot-preview-banner {
+  margin: 0;
+}
+
+.coderoot-preview-cancel {
+  flex: 0 0 auto;
+}
+
+.coderoot-live-preview [data-coderoot-preview-block] {
+  border-radius: 6px;
+  cursor: pointer;
+  outline: 1px solid transparent;
+  outline-offset: 5px;
+  transition: background-color 120ms ease, box-shadow 120ms ease, outline-color 120ms ease;
+}
+
+.coderoot-live-preview [data-coderoot-preview-block]:hover,
+.coderoot-live-preview [data-coderoot-preview-block][data-coderoot-scope-active="true"] {
+  background: rgba(250, 245, 255, 0.72);
+  box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.08);
+  outline-color: rgba(124, 58, 237, 0.38);
+}
+

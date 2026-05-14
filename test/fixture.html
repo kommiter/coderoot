@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="ko" data-coderoot-disable-watch="true" data-coderoot-content-base="../content" data-coderoot-test-url="https://www.codetree.ai/ko/trails/complete/curated-cards/intro-test-print-in-variety/introduction">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Coderoot Fixture</title>
+    <link rel="stylesheet" href="../extension/dist/styles.css">
+    <style>
+      body {
+        background: #f6f7f8;
+        font-family: Arial, sans-serif;
+        margin: 24px;
+      }
+
+      .fixture-card {
+        background: #ecfdf5;
+        border: 1px solid #bbf7d0;
+        border-radius: 12px;
+        padding: 6px;
+        width: min(920px, 100%);
+      }
+
+      article {
+        background: #ffffff;
+        border: 1px solid #90e5b0;
+        border-radius: 12px;
+        position: relative;
+      }
+
+      .content {
+        display: flex;
+        flex-direction: column;
+        gap: 40px;
+        padding: 32px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="fixture-card flex flex-col flex-1 w-full overflow-hidden p-[6px] rounded-12 bg-primary-lighter border border-green-200">
+      <nav class="flex z-10 relative">
+        <a href="/trails/complete/curated-cards/intro-test-print-in-variety/introduction">기본개념</a>
+      </nav>
+      <article class="flex flex-col w-full flex-1 overflow-hidden bg-white overflow-y-auto border rounded-12 relative border-[#90E5B0] rounded-tl-0">
+        <div class="w-full sticky top-0 min-h-24 -mb-24 bg-linear-to-b from-white from-20% to-transparent z-20 pointer-events-none select-none"></div>
+        <div class="content flex flex-col p-32 max-md:px-12 gap-40 flex-1 bg-white">
+          <div class="flex items-center gap-8 p-8 rounded-4 bg-green-50">
+            <p>기본 문제에서는 단계별 학습을 위해 각 문제가 하나의 기본개념과 짝을 이룹니다.</p>
+          </div>
+          <div class="flex flex-col gap-12 max-md:gap-8">
+            <article class="flex flex-col mdx w-full wrap-break-word text-justify select-none">
+              <h1>여러가지 출력</h1>
+            </article>
+            <button type="button" role="combobox">C++14</button>
+            <article class="flex flex-col mdx w-full wrap-break-word text-justify select-none text-start break-keep">
+              <p>문자열을 출력하고 줄을 바꾸려면 \n을 사용할 수 있습니다.</p>
+            </article>
+          </div>
+          <div id="feedback" class="flex gap-x-[30px] gap-y-[10px] justify-center flex-wrap">
+            <p class="text-[12px] text-label-assistive">이 콘텐츠가 도움이 되었나요?</p>
+          </div>
+          <p class="text-caption2 text-label-assistive text-center text-pretty">주의사항 : Copyright © Branch &amp; Bound</p>
+        </div>
+      </article>
+    </div>
+
+    <script src="../extension/dist/content-script.js"></script>
+    <script>
+      window.setTimeout(() => {
+        const visualMode = new URLSearchParams(location.search).get("visual") === "1";
+        const block = document.querySelector("[data-coderoot-root]");
+        const feedback = document.querySelector("#feedback");
+        const button = document.querySelector("[data-coderoot-toggle]");
+        const edit = document.querySelector("[data-coderoot-edit]");
+        const beforeFooter = Boolean(block && feedback && (block.compareDocumentPosition(feedback) & Node.DOCUMENT_POSITION_FOLLOWING));
+
+        edit?.click();
+
+        window.setTimeout(() => {
+          const editor = document.querySelector("[data-coderoot-editor]");
+          const textarea = editor?.querySelector("textarea");
+          const highlight = editor?.querySelector(".coderoot-side-highlight");
+          const editorCancel = editor?.querySelector(".coderoot-side-close-button");
+          const previewCancel = document.querySelector(".coderoot-preview-cancel");
+          const download = editor?.querySelector("button[data-coderoot-download], .coderoot-side-footer-button[download]");
+
+          document.body.dataset.coderootBlock = block ? "yes" : "no";
+          document.body.dataset.coderootExpanded = block?.dataset.coderootExpanded || "";
+          document.body.dataset.coderootBeforeFooter = beforeFooter ? "yes" : "no";
+          document.body.dataset.coderootArticleExpanded = document.querySelector("article.flex")?.dataset.coderootExpanded || "";
+          document.body.dataset.coderootEdit = edit ? "yes" : "no";
+          document.body.dataset.coderootToggle = button ? "yes" : "no";
+          document.body.dataset.coderootConceptLanguage = block?.dataset.coderootConceptLanguage || "";
+          document.body.dataset.coderootEditor = editor ? "yes" : "no";
+          document.body.dataset.coderootEditorXml = textarea?.value.includes("<coderoot") ? "yes" : "no";
+          document.body.dataset.coderootEditorHighlight = highlight?.innerHTML.includes("coderoot-xml-tag") ? "yes" : "no";
+          document.body.dataset.coderootEditorCancel = editorCancel ? "yes" : "no";
+          document.body.dataset.coderootPreviewCancel = previewCancel ? "yes" : "no";
+          document.body.dataset.coderootDownload = download ? "yes" : "no";
+
+          if (!visualMode) {
+            previewCancel?.click();
+            window.setTimeout(() => {
+              const restored = document.querySelector("[data-coderoot-root]");
+              document.body.dataset.coderootCancelRestored =
+                restored?.dataset.coderootExpanded === "true" && !document.querySelector('[data-coderoot-editor="true"]') ? "yes" : "no";
+            }, 0);
+          }
+        }, 220);
+      }, 500);
+    </script>
+  </body>
+</html>

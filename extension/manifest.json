@@ -1,0 +1,49 @@
+{
+  "manifest_version": 3,
+  "name": "Coderoot",
+  "version": "0.1.0",
+  "description": "Advanced concept notes for Codetree.",
+  "icons": {
+    "16": "coderoot-16.png",
+    "48": "coderoot-48.png",
+    "128": "coderoot-128.png"
+  },
+  "action": {
+    "default_title": "Coderoot",
+    "default_icon": {
+      "16": "coderoot-16.png",
+      "48": "coderoot-48.png",
+      "128": "coderoot-128.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.codetree.ai/*",
+        "https://codetree.ai/*"
+      ],
+      "js": [
+        "dist/content-script.js"
+      ],
+      "css": [
+        "dist/styles.css"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "host_permissions": [
+    "https://raw.githubusercontent.com/*"
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "coderoot-favicon.ico",
+        "codetree-favicon.ico"
+      ],
+      "matches": [
+        "https://www.codetree.ai/*",
+        "https://codetree.ai/*"
+      ]
+    }
+  ]
+}

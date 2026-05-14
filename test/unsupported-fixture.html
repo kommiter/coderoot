@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="ko" data-coderoot-disable-watch="true" data-coderoot-content-base="../content" data-coderoot-test-url="https://www.codetree.ai/ko/trails/complete/curated-cards/challenge-test-print-in-variety/introduction">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Coderoot Unsupported Fixture</title>
+    <link rel="stylesheet" href="../extension/dist/styles.css">
+  </head>
+  <body>
+    <article class="flex flex-col w-full flex-1 overflow-hidden bg-white overflow-y-auto border rounded-12 relative border-[#90E5B0] rounded-tl-0">
+      <div class="flex flex-col p-32 max-md:px-12 gap-40 flex-1 bg-white">
+        <div>
+          <article class="flex flex-col mdx w-full wrap-break-word text-justify select-none">
+            <h1>여러 기본 개념이 있는 문제</h1>
+          </article>
+        </div>
+        <div id="feedback" class="flex gap-x-[30px] gap-y-[10px] justify-center flex-wrap">
+          <p class="text-[12px] text-label-assistive">이 콘텐츠가 도움이 되었나요?</p>
+        </div>
+      </div>
+    </article>
+
+    <script src="../extension/dist/content-script.js"></script>
+    <script>
+      window.setTimeout(() => {
+        const block = document.querySelector("[data-coderoot-root]");
+        const toggle = document.querySelector("[data-coderoot-toggle]");
+        document.body.dataset.coderootBlock = block ? "yes" : "no";
+        document.body.dataset.coderootStatus = block?.dataset.coderootStatus || "";
+        document.body.dataset.coderootKind = block?.dataset.coderootKind || "";
+        document.body.dataset.coderootToggle = toggle ? "yes" : "no";
+      }, 500);
+    </script>
+  </body>
+</html>

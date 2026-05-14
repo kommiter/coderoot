@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en" data-coderoot-disable-watch="true" data-coderoot-content-base="../content" data-coderoot-test-url="https://www.codetree.ai/en/trails/complete/curated-cards/intro-test-print-in-variety/introduction">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Coderoot English Fixture</title>
+    <link rel="stylesheet" href="../extension/dist/styles.css">
+  </head>
+  <body>
+    <article class="flex flex-col w-full flex-1 overflow-hidden bg-white overflow-y-auto border rounded-12 relative border-[#90E5B0] rounded-tl-0">
+      <div class="flex flex-col p-32 max-md:px-12 gap-40 flex-1 bg-white">
+        <div>
+          <article class="flex flex-col mdx w-full wrap-break-word text-justify select-none">
+            <h1>Print in Variety</h1>
+          </article>
+          <button type="button" role="combobox">C++14</button>
+        </div>
+        <div id="feedback" class="flex gap-x-[30px] gap-y-[10px] justify-center flex-wrap">
+          <p class="text-[12px] text-label-assistive">Was this content helpful?</p>
+        </div>
+      </div>
+    </article>
+
+    <script src="../extension/dist/content-script.js"></script>
+    <script>
+      window.setTimeout(() => {
+        const block = document.querySelector("[data-coderoot-root]");
+        const button = document.querySelector("[data-coderoot-toggle]");
+        const edit = document.querySelector("[data-coderoot-edit]");
+        document.body.dataset.coderootBlock = block ? "yes" : "no";
+        document.body.dataset.coderootExpanded = block?.dataset.coderootExpanded || "";
+        document.body.dataset.coderootLanguage = block?.dataset.coderootLanguage || "";
+        document.body.dataset.coderootConceptLanguage = block?.dataset.coderootConceptLanguage || "";
+        document.body.dataset.coderootEdit = edit ? "yes" : "no";
+        document.body.dataset.coderootToggle = button ? "yes" : "no";
+      }, 500);
+    </script>
+  </body>
+</html>

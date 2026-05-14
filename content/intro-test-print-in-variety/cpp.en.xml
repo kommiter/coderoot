@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<coderoot version="1" lang="en">
+  <meta>
+    <title>Understanding Fixed Output in C++14</title>
+    <badge>C++14 output deep dive</badge>
+  </meta>
+  <content>
+    <p>This problem does not ask you to read input or compute a result. It asks you to print four fixed lines exactly as written. Every letter, space, newline, and decimal digit is part of the answer.</p>
+
+    <h3>The simplest safe solution</h3>
+    <p>When the required output is fully fixed, printing string literals directly is the most stable approach.</p>
+
+    <code-block language="cpp"><![CDATA[#include <iostream>
+using namespace std;
+
+int main() {
+    cout << "Total days in Year\n";
+    cout << "365\n";
+    cout << "Circumference rate\n";
+    cout << "3.1415926535\n";
+    return 0;
+}
+]]></code-block>
+
+    <h3>What <code>\n</code> means</h3>
+    <p><code>\n</code> does not print a backslash and the letter n. Inside a string literal, it becomes one newline character. This kind of special notation is called an escape sequence.</p>
+
+    <ul>
+      <li><code>\n</code>: moves the next output to a new line.</li>
+      <li><code>\t</code>: inserts a tab character.</li>
+      <li><code>\\</code>: prints one literal backslash.</li>
+      <li><code>\"</code>: inserts a double quote inside a string.</li>
+    </ul>
+
+    <h3>Why not print the decimal as a number?</h3>
+    <p><code>3.1415926535</code> is not something we need to calculate here. It is exact text that must appear in the output. Printing it as a floating-point number can change the visible precision, so <code>"3.1415926535\n"</code> is the safer representation for this problem.</p>
+
+    <callout tone="summary">For fixed-output problems, exact text matters more than clever code. Treat capitalization, spaces, line breaks, and decimal digits as part of the required answer.</callout>
+  </content>
+</coderoot>
