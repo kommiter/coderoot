@@ -11,6 +11,8 @@ Advanced concept notes for Codetree.
 
 **Keep the original lesson. Add a deeper explanation below it.**
 
+![Coderoot preview](coderoot.png)
+
 [Install](#install-for-codetree-users) · [Development](#development-quick-start) · [Backend](#backend-deployment) · [Content Files](#content-files) · [Authoring](#authoring-content) · [Licensing](#licensing) · [Publishing](#publishing-notes)
 
 ---
