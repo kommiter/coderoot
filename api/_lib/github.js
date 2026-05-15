@@ -6,9 +6,9 @@ const GITHUB_API_VERSION = "2022-11-28";
 
 export function getRepositoryConfig() {
   return {
-    branch: process.env.GITHUB_DEFAULT_BRANCH || "main",
-    owner: process.env.GITHUB_OWNER || "kommiter",
-    repo: process.env.GITHUB_REPO || "coderoot"
+    branch: process.env.CONTENT_GITHUB_DEFAULT_BRANCH || process.env.GITHUB_DEFAULT_BRANCH || "main",
+    owner: process.env.CONTENT_GITHUB_OWNER || process.env.GITHUB_OWNER || "kommiter",
+    repo: process.env.CONTENT_GITHUB_REPO || process.env.GITHUB_REPO || "coderoot-content"
   };
 }
 

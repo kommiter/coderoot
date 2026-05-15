@@ -1,11 +1,11 @@
 (() => {
   // extension/src/js/config.js
-  var GITHUB_OWNER = "kommiter";
-  var GITHUB_REPO = "coderoot";
-  var GITHUB_DEFAULT_BRANCH = "main";
+  var CONTENT_GITHUB_OWNER = "kommiter";
+  var CONTENT_GITHUB_REPO = "coderoot-content";
+  var CONTENT_GITHUB_DEFAULT_BRANCH = "main";
   var GITHUB_API_BASE = "https://api.github.com";
-  var REMOTE_CONTENT_URL_BASE = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/${GITHUB_DEFAULT_BRANCH}/content/`;
-  var GITHUB_CONTENT_URL_BASE = `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/blob/${GITHUB_DEFAULT_BRANCH}/`;
+  var REMOTE_CONTENT_URL_BASE = `https://raw.githubusercontent.com/${CONTENT_GITHUB_OWNER}/${CONTENT_GITHUB_REPO}/${CONTENT_GITHUB_DEFAULT_BRANCH}/content/`;
+  var GITHUB_CONTENT_URL_BASE = `https://github.com/${CONTENT_GITHUB_OWNER}/${CONTENT_GITHUB_REPO}/blob/${CONTENT_GITHUB_DEFAULT_BRANCH}/`;
 
   // extension/src/js/background.js
   var CODEROOT_SESSION_STORAGE_KEY = "coderoot.githubAppSession";

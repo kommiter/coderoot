@@ -90,6 +90,13 @@ The smoke test uses local HTML fixtures and checks insertion, editor behavior, f
 
 The backend is the repository-root `api/` directory. Deploy the repository root to Vercel; the Chrome Extension still lives under `extension/`.
 
+Use two repositories:
+
+- `kommiter/coderoot`: extension, backend source, docs
+- `kommiter/coderoot-content`: XML content only
+
+Install the GitHub App only on `kommiter/coderoot-content`. Do not install it on the code/backend repository. GitHub Apps cannot be limited to one folder inside a repository, so repository separation is the real permission boundary.
+
 Vercel settings:
 
 - Root Directory: `.`
@@ -110,7 +117,7 @@ Create a GitHub App before setting environment variables:
    - `Contents`: Read and write
    - `Pull requests`: Read and write
    - `Metadata`: Read-only
-6. Create the app, generate a private key, then install the app on `kommiter/coderoot`.
+6. Create the app, generate a private key, then install the app only on `kommiter/coderoot-content`.
 
 Set these Vercel environment variables:
 
@@ -121,9 +128,9 @@ Set these Vercel environment variables:
 | `GITHUB_APP_CLIENT_SECRET` | Generate one under Client secrets |
 | `GITHUB_APP_PRIVATE_KEY` | Contents of the downloaded `.pem` private key |
 | `GITHUB_APP_INSTALLATION_ID` | Optional; leave empty unless you want to pin one installation |
-| `GITHUB_OWNER` | `kommiter` |
-| `GITHUB_REPO` | `coderoot` |
-| `GITHUB_DEFAULT_BRANCH` | `main` |
+| `CONTENT_GITHUB_OWNER` | `kommiter` |
+| `CONTENT_GITHUB_REPO` | `coderoot-content` |
+| `CONTENT_GITHUB_DEFAULT_BRANCH` | `main` |
 | `CODEROOT_ALLOWED_GITHUB_LOGINS` | `kommiter` |
 | `CODEROOT_PUBLIC_ORIGIN` | `https://www.codetree.ai` |
 | `CODEROOT_SESSION_SECRET` | Random 32+ character secret, e.g. `openssl rand -base64 32` |
@@ -245,7 +252,7 @@ The editor currently provides:
 
 On the first save, coderoot opens GitHub in a popup and asks the deployed Coderoot API to verify the author through a GitHub App OAuth flow. The extension stores only a short-lived Coderoot session token. GitHub App secrets and private keys stay on the backend.
 
-Create a GitHub App for the repository and install it on `kommiter/coderoot`.
+Create a GitHub App for the content repository and install it only on `kommiter/coderoot-content`.
 
 Recommended GitHub App settings:
 
@@ -300,7 +307,7 @@ The `Release` GitHub Actions workflow builds the extension, packages `extension/
 The runtime content URL is currently configured for:
 
 ```text
-https://raw.githubusercontent.com/kommiter/coderoot/main/content/
+https://raw.githubusercontent.com/kommiter/coderoot-content/main/content/
 ```
 
 If the repository owner, repository name, or default branch changes, update:

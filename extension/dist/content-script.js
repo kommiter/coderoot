@@ -5,12 +5,12 @@
   var ROUTE_CHECK_MS = 700;
   var INSERT_RETRY_MS = 120;
   var CONTENT_DIR = "content";
-  var GITHUB_OWNER = "kommiter";
-  var GITHUB_REPO = "coderoot";
-  var GITHUB_DEFAULT_BRANCH = "main";
-  var CODEROOT_API_BASE = "";
-  var REMOTE_CONTENT_URL_BASE = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/${GITHUB_DEFAULT_BRANCH}/content/`;
-  var GITHUB_CONTENT_URL_BASE = `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/blob/${GITHUB_DEFAULT_BRANCH}/`;
+  var CONTENT_GITHUB_OWNER = "kommiter";
+  var CONTENT_GITHUB_REPO = "coderoot-content";
+  var CONTENT_GITHUB_DEFAULT_BRANCH = "main";
+  var CODEROOT_API_BASE = "https://coderoot-omega.vercel.app";
+  var REMOTE_CONTENT_URL_BASE = `https://raw.githubusercontent.com/${CONTENT_GITHUB_OWNER}/${CONTENT_GITHUB_REPO}/${CONTENT_GITHUB_DEFAULT_BRANCH}/content/`;
+  var GITHUB_CONTENT_URL_BASE = `https://github.com/${CONTENT_GITHUB_OWNER}/${CONTENT_GITHUB_REPO}/blob/${CONTENT_GITHUB_DEFAULT_BRANCH}/`;
   var DEFAULT_CONCEPT_LANGUAGE = "C++14";
   var CONCEPT_LANGUAGE_PATTERNS = [
     { key: "javascript", label: "JavaScript", pattern: /\bjavascript\b/i },
@@ -1183,16 +1183,16 @@ int main() {
         const params = new URLSearchParams({
           path: sourcePath,
           per_page: "8",
-          sha: GITHUB_DEFAULT_BRANCH
+          sha: CONTENT_GITHUB_DEFAULT_BRANCH
         });
-        const response = await githubApi(`/repos/${GITHUB_OWNER}/${GITHUB_REPO}/commits?${params.toString()}`, { auth: false });
+        const response = await githubApi(`/repos/${CONTENT_GITHUB_OWNER}/${CONTENT_GITHUB_REPO}/commits?${params.toString()}`, { auth: false });
         const commits = Array.isArray(response.data) ? response.data : [];
         const entries = [fallback[0]];
         for (const commit of commits) {
           const sha = commit.sha;
           if (!sha) continue;
           try {
-            const file = await githubApi(`/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${encodeGitHubPath(sourcePath)}?ref=${encodeURIComponent(sha)}`, { auth: false });
+            const file = await githubApi(`/repos/${CONTENT_GITHUB_OWNER}/${CONTENT_GITHUB_REPO}/contents/${encodeGitHubPath(sourcePath)}?ref=${encodeURIComponent(sha)}`, { auth: false });
             const xml = formatCoderootXml(base64DecodeUtf8(file.data?.content || ""));
             if (!xml.trim()) continue;
             const date = commit.commit?.committer?.date || commit.commit?.author?.date || "";
