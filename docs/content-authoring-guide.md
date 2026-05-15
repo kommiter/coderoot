@@ -61,6 +61,8 @@ npm run content:read -- "https://www.codetree.ai/en/trails/complete/curated-card
 
 When XML does not exist, the extension shows an `Add advanced note` button. Clicking it opens the Coderoot editor in place of Codetree's right-side code panel and lets the author draft content for the current site language and selected problem language. When XML already exists, the `Edit` button opens the current XML, and the left insertion point becomes a live preview.
 
+When the author saves, Coderoot opens GitHub in a popup and asks the deployed Coderoot API to verify the author through the GitHub App OAuth flow. The backend then creates a temporary branch, commits the matched XML file, opens a pull request, and squash-merges it only when the change is a `content/{slug}/{key}.{site-language}.xml` content file. GitHub App secrets and private keys stay on the backend; the extension stores only a short-lived Coderoot session token.
+
 ## Writing Goals
 
 - Do not repeat or replace the original Codetree lesson.

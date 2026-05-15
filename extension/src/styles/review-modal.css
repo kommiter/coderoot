@@ -331,6 +331,19 @@
   padding: 12px;
 }
 
+.coderoot-review-save-error {
+  color: #b91c1c;
+  flex: 1 1 auto;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.45;
+  margin: 0;
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .coderoot-review-secondary,
 .coderoot-review-primary {
   align-items: center;
@@ -365,3 +378,96 @@
   background: #6d28d9;
 }
 
+.coderoot-review-primary:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.coderoot-token-dialog {
+  background: #ffffff;
+  border: 1px solid #e4e4e7;
+  border-radius: 10px;
+  box-shadow: 0 24px 80px rgba(24, 24, 27, 0.24);
+  color: #27272a;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+  width: min(520px, calc(100vw - 48px));
+}
+
+.coderoot-token-dialog h2 {
+  color: #27272a;
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: 0;
+  line-height: 1.35;
+  margin: 0;
+}
+
+.coderoot-token-dialog p {
+  color: #52525b;
+  font-size: 13px;
+  line-height: 1.65;
+  margin: 0;
+}
+
+.coderoot-token-dialog a {
+  color: #6d28d9;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.coderoot-token-dialog input {
+  border: 1px solid #d4d4d8;
+  border-radius: 6px;
+  color: #27272a;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  outline: none;
+  padding: 10px 12px;
+  width: 100%;
+}
+
+.coderoot-token-dialog input:focus {
+  border-color: #a78bfa;
+}
+
+.coderoot-token-error {
+  color: #b91c1c !important;
+  min-height: 18px;
+}
+
+.coderoot-token-footer {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.coderoot-token-primary,
+.coderoot-token-secondary {
+  align-items: center;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 13px;
+  font-weight: 900;
+  justify-content: center;
+  min-height: 36px;
+  padding: 9px 13px;
+}
+
+.coderoot-token-primary {
+  background: #7c3aed;
+  border: 1px solid #6d28d9;
+  color: #ffffff;
+}
+
+.coderoot-token-secondary {
+  background: #ffffff;
+  border: 1px solid #d4d4d8;
+  color: #3f3f46;
+}

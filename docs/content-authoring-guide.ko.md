@@ -61,6 +61,8 @@ npm run content:read -- "https://www.codetree.ai/ko/trails/complete/curated-card
 
 확장 프로그램 안에서는 XML이 없으면 `심화 설명 추가하기` 버튼을 표시합니다. 이 버튼을 누르면 Codetree 오른쪽 코드 패널 자리에 Coderoot 에디터가 열리고, 현재 사이트 언어와 선택된 문제 언어의 초안을 만들 수 있습니다. 이미 파일이 있으면 `수정하기` 버튼으로 기존 XML을 열 수 있고, 왼쪽 삽입 위치에는 미리보기가 표시됩니다.
 
+작성자가 저장하면 Coderoot는 GitHub 팝업을 열고, 배포된 Coderoot API가 GitHub App OAuth flow로 작성자를 확인합니다. 이후 백엔드가 임시 브랜치를 만들고, 매칭되는 XML 파일을 커밋하고, Pull Request를 생성한 뒤 변경 파일이 `content/{slug}/{key}.{site-language}.xml` 콘텐츠 파일일 때만 squash merge합니다. GitHub App secret과 private key는 백엔드에만 두며, 확장 프로그램에는 짧게 유지되는 Coderoot session token만 저장합니다.
+
 ## 작성 목적
 
 - 기존 Codetree 본문을 반복하거나 대체하지 않습니다.

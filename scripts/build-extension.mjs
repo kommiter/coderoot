@@ -25,6 +25,20 @@ execFileSync(
 execFileSync(
   "npx",
   [
+    "esbuild",
+    "extension/src/js/background.js",
+    "--bundle",
+    "--format=iife",
+    "--target=chrome114",
+    "--outfile=extension/dist/background.js",
+    "--log-level=warning"
+  ],
+  { cwd: root, stdio: "inherit" }
+);
+
+execFileSync(
+  "npx",
+  [
     "@tailwindcss/cli",
     "-i",
     "extension/src/styles/tailwind.css",

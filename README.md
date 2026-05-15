@@ -11,7 +11,7 @@ Advanced concept notes for Codetree.
 
 **Keep the original lesson. Add a deeper explanation below it.**
 
-[Quick Start](#quick-start) · [Content Files](#content-files) · [Authoring](#authoring-content) · [Licensing](#licensing) · [Publishing](#publishing-notes)
+[Quick Start](#quick-start) · [Backend](#backend-deployment) · [Content Files](#content-files) · [Authoring](#authoring-content) · [Licensing](#licensing) · [Publishing](#publishing-notes)
 
 ---
 
@@ -59,6 +59,7 @@ This creates the files loaded by the manifests:
 
 ```text
 extension/dist/content-script.js
+extension/dist/background.js
 extension/dist/styles.css
 ```
 
@@ -84,6 +85,50 @@ npm run smoke
 ```
 
 The smoke test uses local HTML fixtures and checks insertion, editor behavior, footer placement, and unsupported-page handling.
+
+## Backend Deployment
+
+The backend is the repository-root `api/` directory. Deploy the repository root to Vercel; the Chrome Extension still lives under `extension/`.
+
+Vercel settings:
+
+- Root Directory: `.`
+- Framework Preset: `Other`
+- Install Command: `npm install`
+- Build Command: `npm run build`
+- Output Directory: `public`
+
+The repository includes `vercel.json` and `public/index.html` so Vercel has a small static output while serving the API functions under `api/`.
+
+Create a GitHub App before setting environment variables:
+
+1. Open `GitHub Settings > Developer settings > GitHub Apps > New GitHub App`.
+2. Homepage URL: your Vercel deployment URL.
+3. Callback URL: `https://your-vercel-domain.vercel.app/api/auth/github/callback`.
+4. Disable webhook if GitHub asks for a webhook URL.
+5. Repository permissions:
+   - `Contents`: Read and write
+   - `Pull requests`: Read and write
+   - `Metadata`: Read-only
+6. Create the app, generate a private key, then install the app on `kommiter/coderoot`.
+
+Set these Vercel environment variables:
+
+| Variable | Value |
+| --- | --- |
+| `GITHUB_APP_ID` | GitHub App settings page > App ID |
+| `GITHUB_APP_CLIENT_ID` | GitHub App settings page > Client ID |
+| `GITHUB_APP_CLIENT_SECRET` | Generate one under Client secrets |
+| `GITHUB_APP_PRIVATE_KEY` | Contents of the downloaded `.pem` private key |
+| `GITHUB_APP_INSTALLATION_ID` | Optional; leave empty unless you want to pin one installation |
+| `GITHUB_OWNER` | `kommiter` |
+| `GITHUB_REPO` | `coderoot` |
+| `GITHUB_DEFAULT_BRANCH` | `main` |
+| `CODEROOT_ALLOWED_GITHUB_LOGINS` | `kommiter` |
+| `CODEROOT_PUBLIC_ORIGIN` | `https://www.codetree.ai` |
+| `CODEROOT_SESSION_SECRET` | Random 32+ character secret, e.g. `openssl rand -base64 32` |
+
+After deployment succeeds, copy the Vercel URL into `CODEROOT_API_BASE` in `extension/src/js/config.js`, run `npm run build`, and reload the unpacked extension.
 
 ## Supported Pages
 
@@ -119,7 +164,6 @@ The URL/canonical concept can be more specific, while the repository filename ke
 | Codetree selection | canonical concept | content key |
 | --- | --- | --- |
 | C++14 | `cpp14` | `cpp` |
-| C++20 | `cpp20` | `cpp` |
 | Python3 | `python3` | `py` |
 | Java | `java` | `java` |
 | C | `c` | `c` |
@@ -196,10 +240,62 @@ The editor currently provides:
 - undo and redo buttons
 - XML validation
 - save-review modal with a diff-style view
+- GitHub commit history restore dropdown
+- GitHub App save flow that creates a branch, commits the XML, opens a pull request, and auto-merges matched `content/**/*.xml` changes
 
-The current save flow is a UI stub. Direct GitHub write support would require a GitHub App, OAuth flow, or a separate server/API. A public Chrome Extension should not embed a GitHub write token.
+On the first save, coderoot opens GitHub in a popup and asks the deployed Coderoot API to verify the author through a GitHub App OAuth flow. The extension stores only a short-lived Coderoot session token. GitHub App secrets and private keys stay on the backend.
+
+Create a GitHub App for the repository and install it on `kommiter/coderoot`.
+
+Recommended GitHub App settings:
+
+- Homepage URL: your deployed Coderoot API URL
+- User authorization callback URL: `https://your-coderoot-api.example.com/api/auth/github/callback`
+- Repository permissions:
+  - `Contents`: Read and write
+  - `Pull requests`: Read and write
+  - `Metadata`: Read-only
+
+Backend environment variables are listed in `.env.example`. At minimum, configure the GitHub App ID, client ID, client secret, private key, repository owner/name, `CODEROOT_SESSION_SECRET`, and `CODEROOT_ALLOWED_GITHUB_LOGINS`.
+
+After deploying the backend, set `CODEROOT_API_BASE` in `extension/src/js/config.js` to that backend URL and run `npm run build`.
+
+The save button runs this workflow:
+
+1. Create a temporary branch from `main`.
+2. Create or update the matched XML file.
+3. Open a pull request.
+4. If the changed file is under `content/` and is an XML content file, squash-merge the pull request.
+5. Delete the temporary branch when GitHub allows it.
+
+Only `content/{slug}/{key}.{language}.xml` changes are accepted by the extension save endpoint and attempted for auto-merge. Other repository changes should be made through a normal GitHub pull request and reviewed manually.
+
+If repository rules block direct merging of an eligible content XML change, coderoot keeps the review modal open and shows the GitHub error message.
 
 ## Publishing Notes
+
+GitHub Release and Chrome Web Store publishing are separate.
+
+- GitHub Release: distributes a zip that users can download and load manually through `chrome://extensions`.
+- Chrome Web Store: distributes the extension through Chrome's normal install/update flow and requires a store listing and review.
+- GitHub Packages: not needed for this project unless coderoot later becomes an npm package or container image.
+
+Create a local release zip:
+
+```bash
+npm run package
+```
+
+The zip is written to `release/` and contains only the Chrome Extension runtime files with `manifest.json` at the zip root.
+
+Create a GitHub Release by pushing a version tag:
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+The `Release` GitHub Actions workflow builds the extension, packages `extension/`, uploads the zip as a workflow artifact, and attaches it to the GitHub Release for tag pushes.
 
 The runtime content URL is currently configured for:
 

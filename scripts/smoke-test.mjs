@@ -27,6 +27,23 @@ const koReadyPath = contentPath("/ko/trails/complete/curated-cards/intro-test-pr
 const enReadyPath = contentPath("/en/trails/complete/curated-cards/intro-test-print-in-variety/introduction?concept=cpp14");
 
 try {
+  const styles = readFileSync(resolve("extension/dist/styles.css"), "utf8");
+  const styleRequired = [
+    ".coderoot-side-highlight .coderoot-xml-tag",
+    ".coderoot-side-highlight .coderoot-xml-attr",
+    ".coderoot-side-section[data-coderoot-side-panel=true]"
+  ];
+  const missingStyles = styleRequired.filter((needle) => !styles.includes(needle));
+  if (missingStyles.length) {
+    throw new Error(`Smoke test failed. Missing style markers: ${missingStyles.join(", ")}`);
+  }
+  if (/(^|})\s*\[data-coderoot-side-panel=/.test(styles)) {
+    throw new Error("Smoke test failed. Side-panel CSS selector is not scoped to a Coderoot class.");
+  }
+  if (/\.dark\b/.test(styles)) {
+    throw new Error("Smoke test failed. Generic .dark selector should not be emitted.");
+  }
+
   const readyDom = dumpDom(fixtureUrl);
 
   const readyRequired = [
@@ -148,7 +165,7 @@ function contentPath(canonicalPath) {
 }
 
 function toContentConceptKey(concept) {
-  if (concept === "cpp14" || concept === "cpp20") return "cpp";
+  if (concept === "cpp14") return "cpp";
   if (concept === "python3") return "py";
   return concept;
 }

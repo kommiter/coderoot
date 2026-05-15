@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "build": "node scripts/build-extension.mjs",
+    "package": "npm run build && node scripts/package-extension.mjs",
     "content:path": "node scripts/content-path.mjs",
     "content:read": "node scripts/content-path.mjs read",
     "content:write": "node scripts/content-path.mjs write",

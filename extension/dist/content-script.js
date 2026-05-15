@@ -5,14 +5,17 @@
   var ROUTE_CHECK_MS = 700;
   var INSERT_RETRY_MS = 120;
   var CONTENT_DIR = "content";
-  var REMOTE_CONTENT_URL_BASE = "https://raw.githubusercontent.com/kommiter/coderoot/main/content/";
-  var GITHUB_CONTENT_URL_BASE = "https://github.com/kommiter/coderoot/blob/main/";
+  var GITHUB_OWNER = "kommiter";
+  var GITHUB_REPO = "coderoot";
+  var GITHUB_DEFAULT_BRANCH = "main";
+  var CODEROOT_API_BASE = "";
+  var REMOTE_CONTENT_URL_BASE = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/${GITHUB_DEFAULT_BRANCH}/content/`;
+  var GITHUB_CONTENT_URL_BASE = `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/blob/${GITHUB_DEFAULT_BRANCH}/`;
   var DEFAULT_CONCEPT_LANGUAGE = "C++14";
   var CONCEPT_LANGUAGE_PATTERNS = [
     { key: "javascript", label: "JavaScript", pattern: /\bjavascript\b/i },
     { key: "python3", label: "Python3", pattern: /\bpython\s*3\b/i },
     { key: "cpp14", label: "C++14", pattern: /\bc\+\+\s*14\b/i },
-    { key: "cpp20", label: "C++20", pattern: /\bc\+\+\s*20\b/i },
     { key: "csharp", label: "C#", pattern: /\bc#\b/i },
     { key: "java", label: "Java", pattern: /\bjava\b/i },
     { key: "c", label: "C", pattern: /^c$/i }
@@ -770,7 +773,7 @@ int main() {
       return matched || { key: text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "unknown", label: text };
     }
     function getContentConceptKey(conceptLanguageKey) {
-      if (conceptLanguageKey === "cpp14" || conceptLanguageKey === "cpp20") return "cpp";
+      if (conceptLanguageKey === "cpp14") return "cpp";
       if (conceptLanguageKey === "python3") return "py";
       return conceptLanguageKey || "unknown";
     }
@@ -917,6 +920,348 @@ int main() {
       if (!iconPath.startsWith("extension/")) return path;
       if (path.startsWith("extension/")) return path;
       return `extension/${path}`;
+    }
+    function hasExtensionRuntime() {
+      return Boolean(globalThis.chrome?.runtime?.id && globalThis.chrome?.runtime?.sendMessage);
+    }
+    function sendRuntimeMessage(message) {
+      return new Promise((resolve, reject) => {
+        if (!hasExtensionRuntime()) {
+          reject(new Error("Coderoot extension runtime is not available."));
+          return;
+        }
+        chrome.runtime.sendMessage(message, (response) => {
+          const runtimeError = chrome.runtime.lastError;
+          if (runtimeError) {
+            reject(new Error(runtimeError.message));
+            return;
+          }
+          if (!response?.ok) {
+            const error = new Error(response?.error?.message || "Coderoot background request failed.");
+            error.status = response?.error?.status || 0;
+            error.data = response?.error?.data || null;
+            reject(error);
+            return;
+          }
+          resolve(response.data);
+        });
+      });
+    }
+    async function githubApi(endpoint, options = {}) {
+      return sendRuntimeMessage({
+        auth: options.auth !== false,
+        body: options.body ?? null,
+        endpoint,
+        method: options.method || "GET",
+        type: "coderoot.github.api"
+      });
+    }
+    function getCoderootApiBase(language = "ko") {
+      const base = String(CODEROOT_API_BASE || "").trim().replace(/\/+$/, "");
+      if (!base) {
+        throw new Error(
+          language === "en" ? "Coderoot API is not configured yet. Set CODEROOT_API_BASE after deploying the GitHub App backend." : "Coderoot API\uAC00 \uC544\uC9C1 \uC124\uC815\uB418\uC9C0 \uC54A\uC558\uC2B5\uB2C8\uB2E4. GitHub App \uBC31\uC5D4\uB4DC\uB97C \uBC30\uD3EC\uD55C \uB4A4 CODEROOT_API_BASE\uB97C \uC124\uC815\uD574 \uC8FC\uC138\uC694."
+        );
+      }
+      return base;
+    }
+    function getCoderootApiOrigin() {
+      try {
+        return new URL(getCoderootApiBase("en")).origin;
+      } catch {
+        return "";
+      }
+    }
+    async function coderootApi(path, { body = null, language = "ko", method = "GET", token = "" } = {}) {
+      const base = getCoderootApiBase(language);
+      const headers = {
+        Accept: "application/json"
+      };
+      if (body !== null && body !== void 0) {
+        headers["Content-Type"] = "application/json";
+      }
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+      const response = await fetch(`${base}${path}`, {
+        body: body === null || body === void 0 ? void 0 : JSON.stringify(body),
+        headers,
+        method
+      });
+      const text = await response.text();
+      const data = text ? parseMaybeJson(text) : null;
+      if (!response.ok) {
+        const message = typeof data === "object" && data?.message ? data.message : text || (language === "en" ? "Coderoot API request failed." : "Coderoot API \uC694\uCCAD\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.");
+        const error = new Error(message);
+        error.status = response.status;
+        error.data = data;
+        throw error;
+      }
+      return data || {};
+    }
+    function parseMaybeJson(text) {
+      try {
+        return JSON.parse(text);
+      } catch {
+        return text;
+      }
+    }
+    async function getCoderootSessionStatus(language) {
+      if (!hasExtensionRuntime()) return { hasSession: false, login: "", token: "" };
+      const stored = await sendRuntimeMessage({ type: "coderoot.session.get" });
+      if (!stored?.hasSession || !stored.token) return { hasSession: false, login: "", token: "" };
+      try {
+        const session = await coderootApi("/api/auth/session", {
+          language,
+          method: "GET",
+          token: stored.token
+        });
+        return {
+          hasSession: true,
+          login: session.login || stored.login || "",
+          token: stored.token
+        };
+      } catch (error) {
+        if ([401, 403].includes(Number(error.status))) {
+          await clearCoderootSession();
+        }
+        return { hasSession: false, login: "", token: "" };
+      }
+    }
+    async function setCoderootSession({ login, token }) {
+      return sendRuntimeMessage({ login, token, type: "coderoot.session.set" });
+    }
+    async function clearCoderootSession() {
+      if (!hasExtensionRuntime()) return { hasSession: false };
+      return sendRuntimeMessage({ type: "coderoot.session.clear" });
+    }
+    async function ensureCoderootSession(language) {
+      const status = await getCoderootSessionStatus(language);
+      if (status.hasSession) return status.token;
+      const session = await openGitHubAppDialog(language);
+      if (!session?.token) return "";
+      await setCoderootSession(session);
+      return session.token;
+    }
+    function openGitHubAppDialog(language) {
+      return new Promise((resolve) => {
+        document.querySelectorAll(".coderoot-token-overlay").forEach((overlay2) => overlay2.remove());
+        const overlay = document.createElement("div");
+        overlay.className = "coderoot-review-overlay coderoot-token-overlay";
+        const dialog = document.createElement("section");
+        dialog.className = "coderoot-token-dialog";
+        dialog.setAttribute("role", "dialog");
+        dialog.setAttribute("aria-modal", "true");
+        const title = document.createElement("h2");
+        title.textContent = language === "en" ? "Connect GitHub" : "GitHub \uC5F0\uACB0";
+        const description = document.createElement("p");
+        description.textContent = language === "en" ? "Coderoot opens GitHub in a popup, verifies your account, then asks the Coderoot API to save this XML through the installed GitHub App. No personal access token is stored in the extension." : "Coderoot\uAC00 \uD31D\uC5C5\uC73C\uB85C GitHub \uACC4\uC815\uC744 \uD655\uC778\uD55C \uB4A4, \uC124\uCE58\uB41C GitHub App \uAD8C\uD55C\uC73C\uB85C Coderoot API\uC5D0 XML \uC800\uC7A5\uC744 \uC694\uCCAD\uD569\uB2C8\uB2E4. \uD655\uC7A5 \uD504\uB85C\uADF8\uB7A8\uC5D0\uB294 personal access token\uC744 \uC800\uC7A5\uD558\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4.";
+        const error = document.createElement("p");
+        error.className = "coderoot-token-error";
+        const footer = document.createElement("div");
+        footer.className = "coderoot-token-footer";
+        const cancel = document.createElement("button");
+        cancel.type = "button";
+        cancel.className = "coderoot-token-secondary";
+        cancel.textContent = language === "en" ? "Cancel" : "\uCDE8\uC18C";
+        const save = document.createElement("button");
+        save.type = "button";
+        save.className = "coderoot-token-primary";
+        save.textContent = language === "en" ? "Continue with GitHub" : "GitHub\uB85C \uACC4\uC18D\uD558\uAE30";
+        const cleanup = (value) => {
+          window.removeEventListener("message", handleMessage, false);
+          document.removeEventListener("keydown", handleKeydown, true);
+          overlay.remove();
+          resolve(value);
+        };
+        const submit = () => {
+          let apiBase = "";
+          try {
+            apiBase = getCoderootApiBase(language);
+          } catch (baseError) {
+            error.textContent = baseError.message;
+            return;
+          }
+          const authUrl = new URL("/api/auth/github/start", apiBase);
+          authUrl.searchParams.set("origin", window.location.origin);
+          const popup = window.open(authUrl.href, "coderoot-github-auth", "popup=yes,width=720,height=820");
+          if (!popup) {
+            error.textContent = language === "en" ? "Allow popups, then try again." : "\uD31D\uC5C5\uC744 \uD5C8\uC6A9\uD55C \uB4A4 \uB2E4\uC2DC \uC2DC\uB3C4\uD574 \uC8FC\uC138\uC694.";
+            return;
+          }
+          save.disabled = true;
+          save.textContent = language === "en" ? "Waiting for GitHub..." : "GitHub \uC751\uB2F5 \uB300\uAE30 \uC911...";
+        };
+        const handleMessage = (event) => {
+          if (event.origin !== getCoderootApiOrigin()) return;
+          if (event.data?.source !== "coderoot") return;
+          if (event.data?.type === "github.error") {
+            error.textContent = event.data.error || (language === "en" ? "GitHub connection failed." : "GitHub \uC5F0\uACB0\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.");
+            save.disabled = false;
+            save.textContent = language === "en" ? "Continue with GitHub" : "GitHub\uB85C \uACC4\uC18D\uD558\uAE30";
+            return;
+          }
+          if (event.data?.type !== "github.connected") return;
+          if (!event.data.token) {
+            error.textContent = language === "en" ? "GitHub connection did not return a session." : "GitHub \uC5F0\uACB0 \uC138\uC158\uC744 \uBC1B\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.";
+            save.disabled = false;
+            save.textContent = language === "en" ? "Continue with GitHub" : "GitHub\uB85C \uACC4\uC18D\uD558\uAE30";
+            return;
+          }
+          cleanup({
+            login: String(event.data.login || ""),
+            token: String(event.data.token || "")
+          });
+        };
+        const handleKeydown = (event) => {
+          if (!document.body.contains(overlay)) {
+            document.removeEventListener("keydown", handleKeydown, true);
+            return;
+          }
+          if (event.key === "Escape") {
+            event.preventDefault();
+            cleanup("");
+          }
+          if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+            event.preventDefault();
+            submit();
+          }
+        };
+        cancel.addEventListener("click", () => cleanup(""));
+        save.addEventListener("click", submit);
+        overlay.addEventListener("click", (event) => {
+          if (event.target === overlay) cleanup("");
+        });
+        window.addEventListener("message", handleMessage, false);
+        document.addEventListener("keydown", handleKeydown, true);
+        footer.append(cancel, save);
+        dialog.append(title, description, error, footer);
+        overlay.append(dialog);
+        document.body.append(overlay);
+        save.focus({ preventScroll: true });
+      });
+    }
+    async function publishXmlToGitHub(options) {
+      const token = await ensureCoderootSession(options.route.language);
+      if (!token) {
+        throw createSilentCancelError();
+      }
+      const result = await coderootApi("/api/github/save", {
+        body: {
+          mode: options.mode,
+          route: {
+            conceptLanguage: options.route.conceptLanguage,
+            conceptLanguageKey: options.route.conceptLanguageKey,
+            contentConceptKey: options.route.contentConceptKey,
+            language: options.route.language,
+            slug: options.route.slug
+          },
+          sourcePath: options.sourcePath,
+          xmlText: options.xmlText
+        },
+        language: options.route.language,
+        method: "POST",
+        token
+      });
+      clearContentCache();
+      return result;
+    }
+    function createSilentCancelError() {
+      const error = new Error("cancelled");
+      error.coderootSilent = true;
+      return error;
+    }
+    async function loadGitHubVersions({ initialXml, mode, route, sourcePath }) {
+      const fallback = getFallbackVersions({ initialXml, mode, route });
+      if (!hasExtensionRuntime()) {
+        return {
+          entries: fallback,
+          latestLabel: route.language === "en" ? "local draft" : "\uB85C\uCEEC \uC791\uC131\uBCF8"
+        };
+      }
+      try {
+        const params = new URLSearchParams({
+          path: sourcePath,
+          per_page: "8",
+          sha: GITHUB_DEFAULT_BRANCH
+        });
+        const response = await githubApi(`/repos/${GITHUB_OWNER}/${GITHUB_REPO}/commits?${params.toString()}`, { auth: false });
+        const commits = Array.isArray(response.data) ? response.data : [];
+        const entries = [fallback[0]];
+        for (const commit of commits) {
+          const sha = commit.sha;
+          if (!sha) continue;
+          try {
+            const file = await githubApi(`/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${encodeGitHubPath(sourcePath)}?ref=${encodeURIComponent(sha)}`, { auth: false });
+            const xml = formatCoderootXml(base64DecodeUtf8(file.data?.content || ""));
+            if (!xml.trim()) continue;
+            const date = commit.commit?.committer?.date || commit.commit?.author?.date || "";
+            entries.push({
+              label: `${sha.slice(0, 7)} \xB7 ${formatRelativeTime(date, route.language)}`,
+              xml
+            });
+          } catch {
+          }
+        }
+        entries.push(...fallback.slice(1));
+        return {
+          entries,
+          latestLabel: commits[0]?.commit?.committer?.date ? formatRelativeTime(commits[0].commit.committer.date, route.language) : route.language === "en" ? "no published history" : "\uAC8C\uC2DC \uC774\uB825 \uC5C6\uC74C"
+        };
+      } catch {
+        return {
+          entries: fallback,
+          latestLabel: route.language === "en" ? "history unavailable" : "\uC774\uB825 \uBD88\uB7EC\uC624\uAE30 \uC2E4\uD328"
+        };
+      }
+    }
+    function clearContentCache() {
+      contentCache.clear();
+    }
+    function getFallbackVersions({ route, initialXml, mode }) {
+      const template = formatCoderootXml(createXmlTemplate(route));
+      const baseXml = formatCoderootXml(initialXml || template);
+      return [
+        {
+          label: route.language === "en" ? "Current draft" : "\uD604\uC7AC \uC791\uC131\uBCF8",
+          xml: baseXml
+        },
+        {
+          label: route.language === "en" ? "Clean template" : "\uCD08\uAE30 \uD15C\uD50C\uB9BF",
+          xml: template
+        },
+        {
+          label: mode === "create" ? route.language === "en" ? "Empty content shell" : "\uBE48 \uCF58\uD150\uCE20 \uD2C0" : route.language === "en" ? "Empty rewrite shell" : "\uBE48 \uC7AC\uC791\uC131 \uD2C0",
+          xml: formatCoderootXml(template.replace(/<content>[\s\S]*?<\/content>/, "<content>\n    <p></p>\n  </content>"))
+        }
+      ];
+    }
+    function formatRelativeTime(dateText, language) {
+      const time = Date.parse(dateText || "");
+      if (!time) return language === "en" ? "unknown time" : "\uC2DC\uAC04 \uC54C \uC218 \uC5C6\uC74C";
+      const seconds = Math.max(1, Math.round((Date.now() - time) / 1e3));
+      const units = [
+        [31536e3, language === "en" ? "year" : "\uB144"],
+        [2592e3, language === "en" ? "month" : "\uAC1C\uC6D4"],
+        [86400, language === "en" ? "day" : "\uC77C"],
+        [3600, language === "en" ? "hour" : "\uC2DC\uAC04"],
+        [60, language === "en" ? "minute" : "\uBD84"]
+      ];
+      for (const [unitSeconds, label] of units) {
+        if (seconds < unitSeconds) continue;
+        const count = Math.floor(seconds / unitSeconds);
+        if (language === "en") return `${count} ${label}${count === 1 ? "" : "s"} ago`;
+        return `${count}${label} \uC804`;
+      }
+      return language === "en" ? "just now" : "\uBC29\uAE08 \uC804";
+    }
+    function encodeGitHubPath(path) {
+      return String(path).split("/").map(encodeURIComponent).join("/");
+    }
+    function base64DecodeUtf8(text) {
+      const binary = atob(String(text || "").replace(/\s/g, ""));
+      const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+      return new TextDecoder().decode(bytes);
     }
     function setEditingFavicon(editing) {
       if (!document.head) return;
@@ -1095,7 +1440,7 @@ int main() {
       const language = route.language;
       const panel = await createSideEditorPanel(article);
       const shell = document.createElement("div");
-      shell.className = "coderoot-side-shell dark";
+      shell.className = "coderoot-side-shell";
       shell.dataset.coderootEditor = "true";
       const topbar = document.createElement("div");
       topbar.className = "coderoot-side-topbar";
@@ -1111,7 +1456,7 @@ int main() {
       modePill.textContent = "XML";
       const updated = document.createElement("span");
       updated.className = "coderoot-side-muted";
-      updated.textContent = language === "en" ? "edited 3 hours ago" : "3\uC2DC\uAC04 \uC804 \uC218\uC815\uB428";
+      updated.textContent = language === "en" ? "loading history..." : "\uC774\uB825 \uBD88\uB7EC\uC624\uB294 \uC911...";
       leftTools.append(close, modePill, updated);
       const github = document.createElement("a");
       github.className = "coderoot-side-link";
@@ -1124,13 +1469,18 @@ int main() {
       const versions = document.createElement("select");
       versions.className = "coderoot-side-select";
       versions.setAttribute("aria-label", language === "en" ? "Restore version" : "\uB418\uB3CC\uB9B4 \uBC84\uC804 \uC120\uD0DD");
-      const dummyVersions = getDummyVersions({ route, initialXml, mode });
-      dummyVersions.forEach((version, index) => {
-        const option = document.createElement("option");
-        option.value = String(index);
-        option.textContent = version.label;
-        versions.append(option);
-      });
+      let versionEntries = getFallbackVersions({ route, initialXml, mode });
+      const renderVersionOptions = (selectedIndex = 0) => {
+        versions.replaceChildren();
+        versionEntries.forEach((version, index) => {
+          const option = document.createElement("option");
+          option.value = String(index);
+          option.textContent = version.label;
+          versions.append(option);
+        });
+        versions.value = String(Math.min(selectedIndex, Math.max(0, versionEntries.length - 1)));
+      };
+      renderVersionOptions();
       const state = document.createElement("button");
       state.type = "button";
       state.className = "coderoot-side-state";
@@ -1318,6 +1668,15 @@ int main() {
           renderInvalidPreviewRoot({ root, article, route, message: status.textContent, onCancel: cancelEditing });
         }
       };
+      const refreshVersionHistory = async () => {
+        versions.disabled = true;
+        updated.textContent = language === "en" ? "loading history..." : "\uC774\uB825 \uBD88\uB7EC\uC624\uB294 \uC911...";
+        const result = await loadGitHubVersions({ initialXml: originalXml, mode, route, sourcePath });
+        versionEntries = result.entries;
+        renderVersionOptions(0);
+        updated.textContent = result.latestLabel;
+        versions.disabled = false;
+      };
       const insertIndent = () => {
         const value = textarea.value;
         const start = textarea.selectionStart || 0;
@@ -1392,7 +1751,7 @@ int main() {
         window.requestAnimationFrame(() => renderEditorSurface({ revealPreview: true }));
       });
       versions.addEventListener("change", () => {
-        const version = dummyVersions[Number(versions.value)];
+        const version = versionEntries[Number(versions.value)];
         if (!version) return;
         setEditorValue(version.xml);
         status.dataset.state = "success";
@@ -1421,7 +1780,13 @@ int main() {
           beforeProblem: validateProblemXmlSilently(originalXml, route, sourcePath),
           beforeXml: originalXml,
           language,
-          onConfirm: () => {
+          onConfirm: async () => {
+            const result = await publishXmlToGitHub({
+              mode,
+              route,
+              sourcePath,
+              xmlText: textarea.value
+            });
             originalXml = textarea.value;
             history = [originalXml];
             historyIndex = 0;
@@ -1429,7 +1794,8 @@ int main() {
             sync();
             updateStateIndicator("clean");
             status.dataset.state = "success";
-            status.textContent = "";
+            status.textContent = result.prUrl && result.requiresManualReview ? language === "en" ? `Pull request created for manual review: ${result.prUrl}` : `\uC218\uB3D9 \uC2EC\uC0AC\uC6A9 Pull Request \uC0DD\uC131\uB428: ${result.prUrl}` : result.prUrl ? language === "en" ? `Saved and merged: ${result.prUrl}` : `\uC800\uC7A5 \uBC0F \uBA38\uC9C0 \uC644\uB8CC: ${result.prUrl}` : "";
+            await refreshVersionHistory();
           },
           route
         });
@@ -1441,6 +1807,7 @@ int main() {
       textarea.scrollLeft = 0;
       renderEditorSurface();
       textarea.focus({ preventScroll: true });
+      void refreshVersionHistory();
     }
     function cancelActiveEditSession() {
       const cancel = activeEditorCancel;
@@ -1492,6 +1859,7 @@ int main() {
           style: original.getAttribute("style"),
           closeButton: findOriginalEditorCloseButton(original)
         };
+        original.classList.add("coderoot-side-host-panel");
         original.dataset.coderootSidePanel = "true";
         original.style.setProperty("flex", "0 0 clamp(520px, 48vw, 920px)", "important");
         original.style.setProperty("max-width", "clamp(520px, 48vw, 920px)", "important");
@@ -1752,42 +2120,6 @@ int main() {
       if (!problem) return null;
       return getPreviewScopes(problem).find((scope) => isLineInSourceRange(line, scope.sourceRange)) || null;
     }
-    function getDummyVersions({ route, initialXml, mode }) {
-      const template = createXmlTemplate(route);
-      const baseXml = initialXml || template;
-      const threeHoursAgo = baseXml.replace(
-        /<title>[\s\S]*?<\/title>/,
-        route.language === "en" ? "<title>Previous Draft</title>" : "<title>\uC774\uC804 \uCD08\uC548</title>"
-      );
-      return [
-        {
-          label: route.language === "en" ? "local \xB7 current draft \xB7 now" : "local \xB7 \uD604\uC7AC \uC791\uC5C5\uBCF8 \xB7 \uC9C0\uAE08",
-          xml: baseXml
-        },
-        {
-          label: route.language === "en" ? "a18f3c2 \xB7 3 hours ago" : "a18f3c2 \xB7 3\uC2DC\uAC04 \uC804",
-          xml: threeHoursAgo
-        },
-        {
-          label: route.language === "en" ? "template \xB7 initial" : "template \xB7 \uCD08\uAE30 \uD15C\uD50C\uB9BF",
-          xml: template
-        },
-        {
-          label: mode === "create" ? route.language === "en" ? "empty \xB7 content shell" : "empty \xB7 \uBE48 \uCF58\uD150\uCE20 \uD2C0" : route.language === "en" ? "9bc71de \xB7 last published" : "9bc71de \xB7 \uB9C8\uC9C0\uB9C9 \uAC8C\uC2DC\uBCF8",
-          xml: template.replace(/<content>[\s\S]*?<\/content>/, "<content>\n    <p></p>\n  </content>")
-        }
-      ];
-    }
-    function makeGuideParagraph(language) {
-      const paragraph = document.createElement("p");
-      paragraph.textContent = language === "en" ? "Use a small set of tags: p, h3, ul/li, code, code-block, and callout. Wrap multi-line C++ code in CDATA so <, >, and & do not break XML." : "\uC790\uC8FC \uC4F0\uB294 \uD0DC\uADF8\uB9CC \uAE30\uC5B5\uD558\uBA74 \uB429\uB2C8\uB2E4: p, h3, ul/li, code, code-block, callout. \uC5EC\uB7EC \uC904 C++ \uCF54\uB4DC\uB294 CDATA\uB85C \uAC10\uC2F8\uBA74 <, >, & \uB54C\uBB38\uC5D0 XML\uC774 \uAE68\uC9C0\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4.";
-      return paragraph;
-    }
-    function makeGuideCode(language) {
-      const pre = document.createElement("pre");
-      pre.textContent = language === "en" ? '<p>Explanation with <code>cout</code>.</p>\n<h3>Subheading</h3>\n<code-block language="cpp"><![CDATA[cout << "hi\\n";]]></code-block>\n<callout tone="summary">Key takeaway.</callout>' : '<p><code>cout</code>\uB97C \uD3EC\uD568\uD55C \uC124\uBA85\uC785\uB2C8\uB2E4.</p>\n<h3>\uC18C\uC81C\uBAA9</h3>\n<code-block language="cpp"><![CDATA[cout << "hi\\n";]]></code-block>\n<callout tone="summary">\uD575\uC2EC \uC815\uB9AC\uC785\uB2C8\uB2E4.</callout>';
-      return pre;
-    }
     function validateEditorXml(xmlText, route, sourcePath, status, options = {}) {
       try {
         const problem = {
@@ -1870,13 +2202,15 @@ int main() {
       body.append(xmlPane, previewPane);
       const footer = document.createElement("div");
       footer.className = "coderoot-review-footer";
+      const error = document.createElement("p");
+      error.className = "coderoot-review-save-error";
       const save = document.createElement("button");
       save.type = "button";
       save.className = "coderoot-review-primary";
       save.title = language === "en" ? "Save (\u2318+\u21B5 / Ctrl+\u21B5)" : "\uC800\uC7A5\uD558\uAE30 (\u2318+\u21B5 / Ctrl+\u21B5)";
       save.setAttribute("aria-label", save.title);
       save.innerHTML = `<span>${language === "en" ? "Save" : "\uC800\uC7A5\uD558\uAE30"}</span><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 13v8"></path><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"></path><path d="m8 17 4-4 4 4"></path></svg>`;
-      footer.append(save);
+      footer.append(error, save);
       const setActivePane = (target) => {
         const showXml = target === "xml";
         xmlPane.dataset.active = String(showXml);
@@ -1888,9 +2222,22 @@ int main() {
         document.removeEventListener("keydown", handleModalKeydown, true);
         overlay.remove();
       };
-      const confirmSave = () => {
-        onConfirm?.();
-        closeModal();
+      let saving = false;
+      const confirmSave = async () => {
+        if (saving) return;
+        saving = true;
+        error.textContent = "";
+        save.disabled = true;
+        save.querySelector("span").textContent = language === "en" ? "Saving..." : "\uC800\uC7A5 \uC911...";
+        try {
+          await onConfirm?.();
+          closeModal();
+        } catch (saveError) {
+          error.textContent = saveError?.coderootSilent ? "" : saveError?.message || (language === "en" ? "Save failed." : "\uC800\uC7A5\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.");
+          save.disabled = false;
+          save.querySelector("span").textContent = language === "en" ? "Save" : "\uC800\uC7A5\uD558\uAE30";
+          saving = false;
+        }
       };
       const handleModalKeydown = (event) => {
         if (!document.body.contains(overlay)) {

@@ -3,6 +3,9 @@
   "name": "Coderoot",
   "version": "0.1.0",
   "description": "Advanced concept notes for Codetree.",
+  "permissions": [
+    "storage"
+  ],
   "icons": {
     "16": "extension/coderoot-16.png",
     "48": "extension/coderoot-48.png",
@@ -31,7 +34,11 @@
       "run_at": "document_idle"
     }
   ],
+  "background": {
+    "service_worker": "extension/dist/background.js"
+  },
   "host_permissions": [
+    "https://api.github.com/*",
     "https://raw.githubusercontent.com/*"
   ],
   "web_accessible_resources": [

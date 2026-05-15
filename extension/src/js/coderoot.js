@@ -1,8 +1,12 @@
 import {
+  CODEROOT_API_BASE,
   CONCEPT_LANGUAGE_PATTERNS,
   CONTENT_DIR,
   DEFAULT_CONCEPT_LANGUAGE,
+  GITHUB_DEFAULT_BRANCH,
   GITHUB_CONTENT_URL_BASE,
+  GITHUB_OWNER,
+  GITHUB_REPO,
   INSERT_RETRY_MS,
   REMOTE_CONTENT_URL_BASE,
   ROOT_SELECTOR,
@@ -221,7 +225,7 @@ import { escapeHtml, normalizeText } from "./utils/text.js";
   }
 
   function getContentConceptKey(conceptLanguageKey) {
-    if (conceptLanguageKey === "cpp14" || conceptLanguageKey === "cpp20") return "cpp";
+    if (conceptLanguageKey === "cpp14") return "cpp";
     if (conceptLanguageKey === "python3") return "py";
     return conceptLanguageKey || "unknown";
   }
@@ -406,6 +410,405 @@ import { escapeHtml, normalizeText } from "./utils/text.js";
     if (!iconPath.startsWith("extension/")) return path;
     if (path.startsWith("extension/")) return path;
     return `extension/${path}`;
+  }
+
+  function hasExtensionRuntime() {
+    return Boolean(globalThis.chrome?.runtime?.id && globalThis.chrome?.runtime?.sendMessage);
+  }
+
+  function sendRuntimeMessage(message) {
+    return new Promise((resolve, reject) => {
+      if (!hasExtensionRuntime()) {
+        reject(new Error("Coderoot extension runtime is not available."));
+        return;
+      }
+
+      chrome.runtime.sendMessage(message, (response) => {
+        const runtimeError = chrome.runtime.lastError;
+        if (runtimeError) {
+          reject(new Error(runtimeError.message));
+          return;
+        }
+        if (!response?.ok) {
+          const error = new Error(response?.error?.message || "Coderoot background request failed.");
+          error.status = response?.error?.status || 0;
+          error.data = response?.error?.data || null;
+          reject(error);
+          return;
+        }
+        resolve(response.data);
+      });
+    });
+  }
+
+  async function githubApi(endpoint, options = {}) {
+    return sendRuntimeMessage({
+      auth: options.auth !== false,
+      body: options.body ?? null,
+      endpoint,
+      method: options.method || "GET",
+      type: "coderoot.github.api"
+    });
+  }
+
+  function getCoderootApiBase(language = "ko") {
+    const base = String(CODEROOT_API_BASE || "").trim().replace(/\/+$/, "");
+    if (!base) {
+      throw new Error(
+        language === "en"
+          ? "Coderoot API is not configured yet. Set CODEROOT_API_BASE after deploying the GitHub App backend."
+          : "Coderoot API가 아직 설정되지 않았습니다. GitHub App 백엔드를 배포한 뒤 CODEROOT_API_BASE를 설정해 주세요."
+      );
+    }
+    return base;
+  }
+
+  function getCoderootApiOrigin() {
+    try {
+      return new URL(getCoderootApiBase("en")).origin;
+    } catch {
+      return "";
+    }
+  }
+
+  async function coderootApi(path, { body = null, language = "ko", method = "GET", token = "" } = {}) {
+    const base = getCoderootApiBase(language);
+    const headers = {
+      Accept: "application/json"
+    };
+    if (body !== null && body !== undefined) {
+      headers["Content-Type"] = "application/json";
+    }
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${base}${path}`, {
+      body: body === null || body === undefined ? undefined : JSON.stringify(body),
+      headers,
+      method
+    });
+    const text = await response.text();
+    const data = text ? parseMaybeJson(text) : null;
+
+    if (!response.ok) {
+      const message = typeof data === "object" && data?.message
+        ? data.message
+        : (text || (language === "en" ? "Coderoot API request failed." : "Coderoot API 요청에 실패했습니다."));
+      const error = new Error(message);
+      error.status = response.status;
+      error.data = data;
+      throw error;
+    }
+
+    return data || {};
+  }
+
+  function parseMaybeJson(text) {
+    try {
+      return JSON.parse(text);
+    } catch {
+      return text;
+    }
+  }
+
+  async function getCoderootSessionStatus(language) {
+    if (!hasExtensionRuntime()) return { hasSession: false, login: "", token: "" };
+    const stored = await sendRuntimeMessage({ type: "coderoot.session.get" });
+    if (!stored?.hasSession || !stored.token) return { hasSession: false, login: "", token: "" };
+
+    try {
+      const session = await coderootApi("/api/auth/session", {
+        language,
+        method: "GET",
+        token: stored.token
+      });
+      return {
+        hasSession: true,
+        login: session.login || stored.login || "",
+        token: stored.token
+      };
+    } catch (error) {
+      if ([401, 403].includes(Number(error.status))) {
+        await clearCoderootSession();
+      }
+      return { hasSession: false, login: "", token: "" };
+    }
+  }
+
+  async function setCoderootSession({ login, token }) {
+    return sendRuntimeMessage({ login, token, type: "coderoot.session.set" });
+  }
+
+  async function clearCoderootSession() {
+    if (!hasExtensionRuntime()) return { hasSession: false };
+    return sendRuntimeMessage({ type: "coderoot.session.clear" });
+  }
+
+  async function ensureCoderootSession(language) {
+    const status = await getCoderootSessionStatus(language);
+    if (status.hasSession) return status.token;
+
+    const session = await openGitHubAppDialog(language);
+    if (!session?.token) return "";
+    await setCoderootSession(session);
+    return session.token;
+  }
+
+  function openGitHubAppDialog(language) {
+    return new Promise((resolve) => {
+      document.querySelectorAll(".coderoot-token-overlay").forEach((overlay) => overlay.remove());
+
+      const overlay = document.createElement("div");
+      overlay.className = "coderoot-review-overlay coderoot-token-overlay";
+
+      const dialog = document.createElement("section");
+      dialog.className = "coderoot-token-dialog";
+      dialog.setAttribute("role", "dialog");
+      dialog.setAttribute("aria-modal", "true");
+
+      const title = document.createElement("h2");
+      title.textContent = language === "en" ? "Connect GitHub" : "GitHub 연결";
+
+      const description = document.createElement("p");
+      description.textContent =
+        language === "en"
+          ? "Coderoot opens GitHub in a popup, verifies your account, then asks the Coderoot API to save this XML through the installed GitHub App. No personal access token is stored in the extension."
+          : "Coderoot가 팝업으로 GitHub 계정을 확인한 뒤, 설치된 GitHub App 권한으로 Coderoot API에 XML 저장을 요청합니다. 확장 프로그램에는 personal access token을 저장하지 않습니다.";
+
+      const error = document.createElement("p");
+      error.className = "coderoot-token-error";
+
+      const footer = document.createElement("div");
+      footer.className = "coderoot-token-footer";
+
+      const cancel = document.createElement("button");
+      cancel.type = "button";
+      cancel.className = "coderoot-token-secondary";
+      cancel.textContent = language === "en" ? "Cancel" : "취소";
+
+      const save = document.createElement("button");
+      save.type = "button";
+      save.className = "coderoot-token-primary";
+      save.textContent = language === "en" ? "Continue with GitHub" : "GitHub로 계속하기";
+
+      const cleanup = (value) => {
+        window.removeEventListener("message", handleMessage, false);
+        document.removeEventListener("keydown", handleKeydown, true);
+        overlay.remove();
+        resolve(value);
+      };
+
+      const submit = () => {
+        let apiBase = "";
+        try {
+          apiBase = getCoderootApiBase(language);
+        } catch (baseError) {
+          error.textContent = baseError.message;
+          return;
+        }
+
+        const authUrl = new URL("/api/auth/github/start", apiBase);
+        authUrl.searchParams.set("origin", window.location.origin);
+        const popup = window.open(authUrl.href, "coderoot-github-auth", "popup=yes,width=720,height=820");
+        if (!popup) {
+          error.textContent = language === "en" ? "Allow popups, then try again." : "팝업을 허용한 뒤 다시 시도해 주세요.";
+          return;
+        }
+        save.disabled = true;
+        save.textContent = language === "en" ? "Waiting for GitHub..." : "GitHub 응답 대기 중...";
+      };
+
+      const handleMessage = (event) => {
+        if (event.origin !== getCoderootApiOrigin()) return;
+        if (event.data?.source !== "coderoot") return;
+        if (event.data?.type === "github.error") {
+          error.textContent = event.data.error || (language === "en" ? "GitHub connection failed." : "GitHub 연결에 실패했습니다.");
+          save.disabled = false;
+          save.textContent = language === "en" ? "Continue with GitHub" : "GitHub로 계속하기";
+          return;
+        }
+        if (event.data?.type !== "github.connected") return;
+        if (!event.data.token) {
+          error.textContent = language === "en" ? "GitHub connection did not return a session." : "GitHub 연결 세션을 받지 못했습니다.";
+          save.disabled = false;
+          save.textContent = language === "en" ? "Continue with GitHub" : "GitHub로 계속하기";
+          return;
+        }
+        cleanup({
+          login: String(event.data.login || ""),
+          token: String(event.data.token || "")
+        });
+      };
+
+      const handleKeydown = (event) => {
+        if (!document.body.contains(overlay)) {
+          document.removeEventListener("keydown", handleKeydown, true);
+          return;
+        }
+        if (event.key === "Escape") {
+          event.preventDefault();
+          cleanup("");
+        }
+        if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+          event.preventDefault();
+          submit();
+        }
+      };
+
+      cancel.addEventListener("click", () => cleanup(""));
+      save.addEventListener("click", submit);
+      overlay.addEventListener("click", (event) => {
+        if (event.target === overlay) cleanup("");
+      });
+      window.addEventListener("message", handleMessage, false);
+      document.addEventListener("keydown", handleKeydown, true);
+
+      footer.append(cancel, save);
+      dialog.append(title, description, error, footer);
+      overlay.append(dialog);
+      document.body.append(overlay);
+      save.focus({ preventScroll: true });
+    });
+  }
+
+  async function publishXmlToGitHub(options) {
+    const token = await ensureCoderootSession(options.route.language);
+    if (!token) {
+      throw createSilentCancelError();
+    }
+
+    const result = await coderootApi("/api/github/save", {
+      body: {
+        mode: options.mode,
+        route: {
+          conceptLanguage: options.route.conceptLanguage,
+          conceptLanguageKey: options.route.conceptLanguageKey,
+          contentConceptKey: options.route.contentConceptKey,
+          language: options.route.language,
+          slug: options.route.slug
+        },
+        sourcePath: options.sourcePath,
+        xmlText: options.xmlText
+      },
+      language: options.route.language,
+      method: "POST",
+      token
+    });
+
+    clearContentCache();
+    return result;
+  }
+
+  function createSilentCancelError() {
+    const error = new Error("cancelled");
+    error.coderootSilent = true;
+    return error;
+  }
+
+  async function loadGitHubVersions({ initialXml, mode, route, sourcePath }) {
+    const fallback = getFallbackVersions({ initialXml, mode, route });
+    if (!hasExtensionRuntime()) {
+      return {
+        entries: fallback,
+        latestLabel: route.language === "en" ? "local draft" : "로컬 작성본"
+      };
+    }
+
+    try {
+      const params = new URLSearchParams({
+        path: sourcePath,
+        per_page: "8",
+        sha: GITHUB_DEFAULT_BRANCH
+      });
+      const response = await githubApi(`/repos/${GITHUB_OWNER}/${GITHUB_REPO}/commits?${params.toString()}`, { auth: false });
+      const commits = Array.isArray(response.data) ? response.data : [];
+      const entries = [fallback[0]];
+
+      for (const commit of commits) {
+        const sha = commit.sha;
+        if (!sha) continue;
+        try {
+          const file = await githubApi(`/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${encodeGitHubPath(sourcePath)}?ref=${encodeURIComponent(sha)}`, { auth: false });
+          const xml = formatCoderootXml(base64DecodeUtf8(file.data?.content || ""));
+          if (!xml.trim()) continue;
+          const date = commit.commit?.committer?.date || commit.commit?.author?.date || "";
+          entries.push({
+            label: `${sha.slice(0, 7)} · ${formatRelativeTime(date, route.language)}`,
+            xml
+          });
+        } catch {
+          // A commit may touch the path metadata without an immediately readable blob.
+        }
+      }
+
+      entries.push(...fallback.slice(1));
+
+      return {
+        entries,
+        latestLabel: commits[0]?.commit?.committer?.date
+          ? formatRelativeTime(commits[0].commit.committer.date, route.language)
+          : (route.language === "en" ? "no published history" : "게시 이력 없음")
+      };
+    } catch {
+      return {
+        entries: fallback,
+        latestLabel: route.language === "en" ? "history unavailable" : "이력 불러오기 실패"
+      };
+    }
+  }
+
+  function clearContentCache() {
+    contentCache.clear();
+  }
+
+  function getFallbackVersions({ route, initialXml, mode }) {
+    const template = formatCoderootXml(createXmlTemplate(route));
+    const baseXml = formatCoderootXml(initialXml || template);
+    return [
+      {
+        label: route.language === "en" ? "Current draft" : "현재 작성본",
+        xml: baseXml
+      },
+      {
+        label: route.language === "en" ? "Clean template" : "초기 템플릿",
+        xml: template
+      },
+      {
+        label: mode === "create" ? (route.language === "en" ? "Empty content shell" : "빈 콘텐츠 틀") : (route.language === "en" ? "Empty rewrite shell" : "빈 재작성 틀"),
+        xml: formatCoderootXml(template.replace(/<content>[\s\S]*?<\/content>/, "<content>\n    <p></p>\n  </content>"))
+      }
+    ];
+  }
+
+  function formatRelativeTime(dateText, language) {
+    const time = Date.parse(dateText || "");
+    if (!time) return language === "en" ? "unknown time" : "시간 알 수 없음";
+    const seconds = Math.max(1, Math.round((Date.now() - time) / 1000));
+    const units = [
+      [31536000, language === "en" ? "year" : "년"],
+      [2592000, language === "en" ? "month" : "개월"],
+      [86400, language === "en" ? "day" : "일"],
+      [3600, language === "en" ? "hour" : "시간"],
+      [60, language === "en" ? "minute" : "분"]
+    ];
+    for (const [unitSeconds, label] of units) {
+      if (seconds < unitSeconds) continue;
+      const count = Math.floor(seconds / unitSeconds);
+      if (language === "en") return `${count} ${label}${count === 1 ? "" : "s"} ago`;
+      return `${count}${label} 전`;
+    }
+    return language === "en" ? "just now" : "방금 전";
+  }
+
+  function encodeGitHubPath(path) {
+    return String(path).split("/").map(encodeURIComponent).join("/");
+  }
+
+  function base64DecodeUtf8(text) {
+    const binary = atob(String(text || "").replace(/\s/g, ""));
+    const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+    return new TextDecoder().decode(bytes);
   }
 
   function setEditingFavicon(editing) {
@@ -640,7 +1043,7 @@ import { escapeHtml, normalizeText } from "./utils/text.js";
     const language = route.language;
     const panel = await createSideEditorPanel(article);
     const shell = document.createElement("div");
-    shell.className = "coderoot-side-shell dark";
+    shell.className = "coderoot-side-shell";
     shell.dataset.coderootEditor = "true";
 
     const topbar = document.createElement("div");
@@ -661,7 +1064,7 @@ import { escapeHtml, normalizeText } from "./utils/text.js";
 
     const updated = document.createElement("span");
     updated.className = "coderoot-side-muted";
-    updated.textContent = language === "en" ? "edited 3 hours ago" : "3시간 전 수정됨";
+    updated.textContent = language === "en" ? "loading history..." : "이력 불러오는 중...";
 
     leftTools.append(close, modePill, updated);
 
@@ -677,14 +1080,18 @@ import { escapeHtml, normalizeText } from "./utils/text.js";
     const versions = document.createElement("select");
     versions.className = "coderoot-side-select";
     versions.setAttribute("aria-label", language === "en" ? "Restore version" : "되돌릴 버전 선택");
-
-    const dummyVersions = getDummyVersions({ route, initialXml, mode });
-    dummyVersions.forEach((version, index) => {
-      const option = document.createElement("option");
-      option.value = String(index);
-      option.textContent = version.label;
-      versions.append(option);
-    });
+    let versionEntries = getFallbackVersions({ route, initialXml, mode });
+    const renderVersionOptions = (selectedIndex = 0) => {
+      versions.replaceChildren();
+      versionEntries.forEach((version, index) => {
+        const option = document.createElement("option");
+        option.value = String(index);
+        option.textContent = version.label;
+        versions.append(option);
+      });
+      versions.value = String(Math.min(selectedIndex, Math.max(0, versionEntries.length - 1)));
+    };
+    renderVersionOptions();
 
     const state = document.createElement("button");
     state.type = "button";
@@ -908,6 +1315,16 @@ import { escapeHtml, normalizeText } from "./utils/text.js";
       }
     };
 
+    const refreshVersionHistory = async () => {
+      versions.disabled = true;
+      updated.textContent = language === "en" ? "loading history..." : "이력 불러오는 중...";
+      const result = await loadGitHubVersions({ initialXml: originalXml, mode, route, sourcePath });
+      versionEntries = result.entries;
+      renderVersionOptions(0);
+      updated.textContent = result.latestLabel;
+      versions.disabled = false;
+    };
+
     const insertIndent = () => {
       const value = textarea.value;
       const start = textarea.selectionStart || 0;
@@ -991,7 +1408,7 @@ import { escapeHtml, normalizeText } from "./utils/text.js";
     });
 
     versions.addEventListener("change", () => {
-      const version = dummyVersions[Number(versions.value)];
+      const version = versionEntries[Number(versions.value)];
       if (!version) return;
       setEditorValue(version.xml);
       status.dataset.state = "success";
@@ -1021,7 +1438,13 @@ import { escapeHtml, normalizeText } from "./utils/text.js";
         beforeProblem: validateProblemXmlSilently(originalXml, route, sourcePath),
         beforeXml: originalXml,
         language,
-        onConfirm: () => {
+        onConfirm: async () => {
+          const result = await publishXmlToGitHub({
+            mode,
+            route,
+            sourcePath,
+            xmlText: textarea.value
+          });
           originalXml = textarea.value;
           history = [originalXml];
           historyIndex = 0;
@@ -1029,7 +1452,13 @@ import { escapeHtml, normalizeText } from "./utils/text.js";
           sync();
           updateStateIndicator("clean");
           status.dataset.state = "success";
-          status.textContent = "";
+          status.textContent =
+            result.prUrl && result.requiresManualReview
+              ? (language === "en" ? `Pull request created for manual review: ${result.prUrl}` : `수동 심사용 Pull Request 생성됨: ${result.prUrl}`)
+              : result.prUrl
+                ? (language === "en" ? `Saved and merged: ${result.prUrl}` : `저장 및 머지 완료: ${result.prUrl}`)
+              : "";
+          await refreshVersionHistory();
         },
         route
       });
@@ -1042,6 +1471,7 @@ import { escapeHtml, normalizeText } from "./utils/text.js";
     textarea.scrollLeft = 0;
     renderEditorSurface();
     textarea.focus({ preventScroll: true });
+    void refreshVersionHistory();
   }
 
   function cancelActiveEditSession() {
@@ -1100,6 +1530,7 @@ import { escapeHtml, normalizeText } from "./utils/text.js";
         style: original.getAttribute("style"),
         closeButton: findOriginalEditorCloseButton(original)
       };
+      original.classList.add("coderoot-side-host-panel");
       original.dataset.coderootSidePanel = "true";
       original.style.setProperty("flex", "0 0 clamp(520px, 48vw, 920px)", "important");
       original.style.setProperty("max-width", "clamp(520px, 48vw, 920px)", "important");
@@ -1429,53 +1860,6 @@ import { escapeHtml, normalizeText } from "./utils/text.js";
     return getPreviewScopes(problem).find((scope) => isLineInSourceRange(line, scope.sourceRange)) || null;
   }
 
-
-  function getDummyVersions({ route, initialXml, mode }) {
-    const template = createXmlTemplate(route);
-    const baseXml = initialXml || template;
-    const threeHoursAgo = baseXml.replace(
-      /<title>[\s\S]*?<\/title>/,
-      route.language === "en" ? "<title>Previous Draft</title>" : "<title>이전 초안</title>"
-    );
-
-    return [
-      {
-        label: route.language === "en" ? "local · current draft · now" : "local · 현재 작업본 · 지금",
-        xml: baseXml
-      },
-      {
-        label: route.language === "en" ? "a18f3c2 · 3 hours ago" : "a18f3c2 · 3시간 전",
-        xml: threeHoursAgo
-      },
-      {
-        label: route.language === "en" ? "template · initial" : "template · 초기 템플릿",
-        xml: template
-      },
-      {
-        label: mode === "create" ? (route.language === "en" ? "empty · content shell" : "empty · 빈 콘텐츠 틀") : (route.language === "en" ? "9bc71de · last published" : "9bc71de · 마지막 게시본"),
-        xml: template.replace(/<content>[\s\S]*?<\/content>/, "<content>\n    <p></p>\n  </content>")
-      }
-    ];
-  }
-
-  function makeGuideParagraph(language) {
-    const paragraph = document.createElement("p");
-    paragraph.textContent =
-      language === "en"
-        ? "Use a small set of tags: p, h3, ul/li, code, code-block, and callout. Wrap multi-line C++ code in CDATA so <, >, and & do not break XML."
-        : "자주 쓰는 태그만 기억하면 됩니다: p, h3, ul/li, code, code-block, callout. 여러 줄 C++ 코드는 CDATA로 감싸면 <, >, & 때문에 XML이 깨지지 않습니다.";
-    return paragraph;
-  }
-
-  function makeGuideCode(language) {
-    const pre = document.createElement("pre");
-    pre.textContent =
-      language === "en"
-        ? '<p>Explanation with <code>cout</code>.</p>\n<h3>Subheading</h3>\n<code-block language="cpp"><![CDATA[cout << "hi\\n";]]></code-block>\n<callout tone="summary">Key takeaway.</callout>'
-        : '<p><code>cout</code>를 포함한 설명입니다.</p>\n<h3>소제목</h3>\n<code-block language="cpp"><![CDATA[cout << "hi\\n";]]></code-block>\n<callout tone="summary">핵심 정리입니다.</callout>';
-    return pre;
-  }
-
   function validateEditorXml(xmlText, route, sourcePath, status, options = {}) {
     try {
       const problem = {
@@ -1575,13 +1959,17 @@ import { escapeHtml, normalizeText } from "./utils/text.js";
 
     const footer = document.createElement("div");
     footer.className = "coderoot-review-footer";
+
+    const error = document.createElement("p");
+    error.className = "coderoot-review-save-error";
+
     const save = document.createElement("button");
     save.type = "button";
     save.className = "coderoot-review-primary";
     save.title = language === "en" ? "Save (⌘+↵ / Ctrl+↵)" : "저장하기 (⌘+↵ / Ctrl+↵)";
     save.setAttribute("aria-label", save.title);
     save.innerHTML = `<span>${language === "en" ? "Save" : "저장하기"}</span><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 13v8"></path><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"></path><path d="m8 17 4-4 4 4"></path></svg>`;
-    footer.append(save);
+    footer.append(error, save);
 
     const setActivePane = (target) => {
       const showXml = target === "xml";
@@ -1596,9 +1984,22 @@ import { escapeHtml, normalizeText } from "./utils/text.js";
       document.removeEventListener("keydown", handleModalKeydown, true);
       overlay.remove();
     };
-    const confirmSave = () => {
-      onConfirm?.();
-      closeModal();
+    let saving = false;
+    const confirmSave = async () => {
+      if (saving) return;
+      saving = true;
+      error.textContent = "";
+      save.disabled = true;
+      save.querySelector("span").textContent = language === "en" ? "Saving..." : "저장 중...";
+      try {
+        await onConfirm?.();
+        closeModal();
+      } catch (saveError) {
+        error.textContent = saveError?.coderootSilent ? "" : (saveError?.message || (language === "en" ? "Save failed." : "저장에 실패했습니다."));
+        save.disabled = false;
+        save.querySelector("span").textContent = language === "en" ? "Save" : "저장하기";
+        saving = false;
+      }
     };
     const handleModalKeydown = (event) => {
       if (!document.body.contains(overlay)) {

@@ -119,8 +119,6 @@ function normalizeConceptLanguage(language) {
     c: { key: "c", label: "C" },
     "c++14": { key: "cpp14", label: "C++14" },
     cpp14: { key: "cpp14", label: "C++14" },
-    "c++20": { key: "cpp20", label: "C++20" },
-    cpp20: { key: "cpp20", label: "C++20" },
     java: { key: "java", label: "Java" },
     "c#": { key: "csharp", label: "C#" },
     csharp: { key: "csharp", label: "C#" }
@@ -133,7 +131,7 @@ function normalizeConceptLanguage(language) {
 }
 
 function getContentConceptKey(conceptLanguageKey) {
-  if (conceptLanguageKey === "cpp14" || conceptLanguageKey === "cpp20") return "cpp";
+  if (conceptLanguageKey === "cpp14") return "cpp";
   if (conceptLanguageKey === "python3") return "py";
   return conceptLanguageKey || "unknown";
 }
