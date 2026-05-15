@@ -828,8 +828,9 @@ import { escapeHtml, normalizeText } from "./utils/text.js";
           const xml = formatCoderootXml(base64DecodeUtf8(file.data?.content || ""));
           if (!xml.trim()) continue;
           const date = commit.commit?.committer?.date || commit.commit?.author?.date || "";
+          const actor = getCommitActor(commit);
           entries.push({
-            label: `${sha.slice(0, 7)} · ${formatRelativeTime(date, route.language)}`,
+            label: compactJoin([sha.slice(0, 7), formatRelativeTime(date, route.language), actor], " · "),
             xml
           });
         } catch {
@@ -837,10 +838,12 @@ import { escapeHtml, normalizeText } from "./utils/text.js";
         }
       }
 
+      const latestCommit = commits[0];
+      const latestDate = latestCommit?.commit?.committer?.date || latestCommit?.commit?.author?.date || "";
       return {
         entries,
-        latestLabel: commits[0]?.commit?.committer?.date
-          ? formatRelativeTime(commits[0].commit.committer.date, route.language)
+        latestLabel: latestDate
+          ? compactJoin([formatRelativeTime(latestDate, route.language), getCommitActor(latestCommit)], " · ")
           : (route.language === "en" ? "no published history" : "게시 이력 없음")
       };
     } catch {
@@ -849,6 +852,16 @@ import { escapeHtml, normalizeText } from "./utils/text.js";
         latestLabel: route.language === "en" ? "history unavailable" : "이력 불러오기 실패"
       };
     }
+  }
+
+  function getCommitActor(commit) {
+    const login = commit?.author?.login || commit?.committer?.login;
+    if (login) return `@${login}`;
+    return commit?.commit?.committer?.name || commit?.commit?.author?.name || "";
+  }
+
+  function compactJoin(parts, separator) {
+    return parts.filter((part) => String(part || "").trim()).join(separator);
   }
 
   function clearContentCache() {

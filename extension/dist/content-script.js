@@ -1290,16 +1290,19 @@ int main() {
             const xml = formatCoderootXml(base64DecodeUtf8(file.data?.content || ""));
             if (!xml.trim()) continue;
             const date = commit.commit?.committer?.date || commit.commit?.author?.date || "";
+            const actor = getCommitActor(commit);
             entries.push({
-              label: `${sha.slice(0, 7)} \xB7 ${formatRelativeTime(date, route.language)}`,
+              label: compactJoin([sha.slice(0, 7), formatRelativeTime(date, route.language), actor], " \xB7 "),
               xml
             });
           } catch {
           }
         }
+        const latestCommit = commits[0];
+        const latestDate = latestCommit?.commit?.committer?.date || latestCommit?.commit?.author?.date || "";
         return {
           entries,
-          latestLabel: commits[0]?.commit?.committer?.date ? formatRelativeTime(commits[0].commit.committer.date, route.language) : route.language === "en" ? "no published history" : "\uAC8C\uC2DC \uC774\uB825 \uC5C6\uC74C"
+          latestLabel: latestDate ? compactJoin([formatRelativeTime(latestDate, route.language), getCommitActor(latestCommit)], " \xB7 ") : route.language === "en" ? "no published history" : "\uAC8C\uC2DC \uC774\uB825 \uC5C6\uC74C"
         };
       } catch {
         return {
@@ -1307,6 +1310,14 @@ int main() {
           latestLabel: route.language === "en" ? "history unavailable" : "\uC774\uB825 \uBD88\uB7EC\uC624\uAE30 \uC2E4\uD328"
         };
       }
+    }
+    function getCommitActor(commit) {
+      const login = commit?.author?.login || commit?.committer?.login;
+      if (login) return `@${login}`;
+      return commit?.commit?.committer?.name || commit?.commit?.author?.name || "";
+    }
+    function compactJoin(parts, separator) {
+      return parts.filter((part) => String(part || "").trim()).join(separator);
     }
     function clearContentCache() {
       contentCache.clear();
