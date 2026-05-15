@@ -3,8 +3,8 @@ export function buildUnifiedDiff(beforeText, afterText) {
 }
 
 function diffLineOperations(beforeText, afterText) {
-  const before = String(beforeText || "").split("\n");
-  const after = String(afterText || "").split("\n");
+  const before = splitDiffLines(beforeText);
+  const after = splitDiffLines(afterText);
   const table = Array.from({ length: before.length + 1 }, () => Array(after.length + 1).fill(0));
 
   for (let oldIndex = before.length - 1; oldIndex >= 0; oldIndex -= 1) {
@@ -50,6 +50,16 @@ function diffLineOperations(beforeText, afterText) {
   }
 
   return ops;
+}
+
+function splitDiffLines(text) {
+  const normalized = String(text || "").replace(/\r\n?/g, "\n");
+  if (!normalized) return [];
+  const lines = normalized.split("\n");
+  if (lines.length > 1 && lines[lines.length - 1] === "") {
+    lines.pop();
+  }
+  return lines;
 }
 
 function annotateInlineChanges(ops) {

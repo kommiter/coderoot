@@ -1975,7 +1975,7 @@ import { escapeHtml, normalizeText } from "./utils/text.js";
     save.className = "coderoot-review-primary";
     save.title = language === "en" ? "Save (⌘+↵ / Ctrl+↵)" : "저장하기 (⌘+↵ / Ctrl+↵)";
     save.setAttribute("aria-label", save.title);
-    save.innerHTML = `<span>${language === "en" ? "Save" : "저장하기"}</span><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 13v8"></path><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"></path><path d="m8 17 4-4 4 4"></path></svg>`;
+    save.innerHTML = `<span>${language === "en" ? "Save" : "저장하기"}</span><i class="coderoot-review-spinner" aria-hidden="true"></i><svg class="coderoot-review-save-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 13v8"></path><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"></path><path d="m8 17 4-4 4 4"></path></svg>`;
     footer.append(error, save);
 
     const setActivePane = (target) => {
@@ -1997,6 +1997,7 @@ import { escapeHtml, normalizeText } from "./utils/text.js";
       saving = true;
       error.textContent = "";
       save.disabled = true;
+      save.dataset.loading = "true";
       save.querySelector("span").textContent = language === "en" ? "Saving..." : "저장 중...";
       try {
         await onConfirm?.();
@@ -2004,6 +2005,7 @@ import { escapeHtml, normalizeText } from "./utils/text.js";
       } catch (saveError) {
         error.textContent = saveError?.coderootSilent ? "" : (saveError?.message || (language === "en" ? "Save failed." : "저장에 실패했습니다."));
         save.disabled = false;
+        delete save.dataset.loading;
         save.querySelector("span").textContent = language === "en" ? "Save" : "저장하기";
         saving = false;
       }

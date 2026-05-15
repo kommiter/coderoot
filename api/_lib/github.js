@@ -294,13 +294,17 @@ function getPrivateKey() {
 
 export function normalizeGitHubPrivateKey(rawKey) {
   let key = String(rawKey || "").trim();
-  key = stripWrappingQuotes(key);
+  key = stripWrappingQuotesRepeatedly(key);
 
   if (key.includes("\\n") || key.includes("\\r")) {
-    key = key.replace(/\\r\\n/g, "\n").replace(/\\n/g, "\n").replace(/\\r/g, "\n");
+    key = key
+      .replace(/\\+r\\+n/g, "\n")
+      .replace(/\\+n/g, "\n")
+      .replace(/\\+r/g, "\n");
   }
 
   key = key.replace(/\r\n?/g, "\n").trim();
+  key = rebuildPemIfPossible(key);
 
   if (!key.includes("-----BEGIN ") && /^[A-Za-z0-9+/=_-]+$/.test(key)) {
     const decoded = decodeMaybeBase64Pem(key);
@@ -310,21 +314,36 @@ export function normalizeGitHubPrivateKey(rawKey) {
   return key.endsWith("\n") ? key : `${key}\n`;
 }
 
-function stripWrappingQuotes(value) {
-  if (value.length < 2) return value;
-  const first = value[0];
-  const last = value[value.length - 1];
-  if ((first === '"' && last === '"') || (first === "'" && last === "'") || (first === "`" && last === "`")) {
-    return value.slice(1, -1).trim();
+function stripWrappingQuotesRepeatedly(value) {
+  let result = String(value || "").trim();
+  for (let index = 0; index < 3; index += 1) {
+    if (result.length < 2) return result;
+    const first = result[0];
+    const last = result[result.length - 1];
+    if ((first === '"' && last === '"') || (first === "'" && last === "'") || (first === "`" && last === "`")) {
+      result = result.slice(1, -1).trim();
+      continue;
+    }
+    return result;
   }
-  return value;
+  return result;
+}
+
+function rebuildPemIfPossible(value) {
+  const match = String(value || "").match(/-----BEGIN ([^-]+)-----([\s\S]*?)-----END \1-----/);
+  if (!match) return value;
+  const label = match[1].trim();
+  const body = match[2].replace(/\s+/g, "");
+  if (!body) return value;
+  const lines = body.match(/.{1,64}/g) || [];
+  return [`-----BEGIN ${label}-----`, ...lines, `-----END ${label}-----`].join("\n");
 }
 
 function decodeMaybeBase64Pem(value) {
   const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
   try {
     const decoded = Buffer.from(normalized, "base64").toString("utf8").replace(/\r\n?/g, "\n").trim();
-    return decoded.includes("-----BEGIN ") ? `${decoded}\n` : "";
+    return decoded.includes("-----BEGIN ") ? `${rebuildPemIfPossible(decoded)}\n` : "";
   } catch {
     return "";
   }

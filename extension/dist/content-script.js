@@ -25,8 +25,8 @@
     return createDiffHunks(annotateInlineChanges(diffLineOperations(beforeText, afterText)), 3);
   }
   function diffLineOperations(beforeText, afterText) {
-    const before = String(beforeText || "").split("\n");
-    const after = String(afterText || "").split("\n");
+    const before = splitDiffLines(beforeText);
+    const after = splitDiffLines(afterText);
     const table = Array.from({ length: before.length + 1 }, () => Array(after.length + 1).fill(0));
     for (let oldIndex2 = before.length - 1; oldIndex2 >= 0; oldIndex2 -= 1) {
       for (let newIndex2 = after.length - 1; newIndex2 >= 0; newIndex2 -= 1) {
@@ -65,6 +65,15 @@
       }
     }
     return ops;
+  }
+  function splitDiffLines(text) {
+    const normalized = String(text || "").replace(/\r\n?/g, "\n");
+    if (!normalized) return [];
+    const lines = normalized.split("\n");
+    if (lines.length > 1 && lines[lines.length - 1] === "") {
+      lines.pop();
+    }
+    return lines;
   }
   function annotateInlineChanges(ops) {
     const annotated = ops.map((op) => ({ ...op }));
@@ -2215,7 +2224,7 @@ int main() {
       save.className = "coderoot-review-primary";
       save.title = language === "en" ? "Save (\u2318+\u21B5 / Ctrl+\u21B5)" : "\uC800\uC7A5\uD558\uAE30 (\u2318+\u21B5 / Ctrl+\u21B5)";
       save.setAttribute("aria-label", save.title);
-      save.innerHTML = `<span>${language === "en" ? "Save" : "\uC800\uC7A5\uD558\uAE30"}</span><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 13v8"></path><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"></path><path d="m8 17 4-4 4 4"></path></svg>`;
+      save.innerHTML = `<span>${language === "en" ? "Save" : "\uC800\uC7A5\uD558\uAE30"}</span><i class="coderoot-review-spinner" aria-hidden="true"></i><svg class="coderoot-review-save-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 13v8"></path><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"></path><path d="m8 17 4-4 4 4"></path></svg>`;
       footer.append(error, save);
       const setActivePane = (target) => {
         const showXml = target === "xml";
@@ -2234,6 +2243,7 @@ int main() {
         saving = true;
         error.textContent = "";
         save.disabled = true;
+        save.dataset.loading = "true";
         save.querySelector("span").textContent = language === "en" ? "Saving..." : "\uC800\uC7A5 \uC911...";
         try {
           await onConfirm?.();
@@ -2241,6 +2251,7 @@ int main() {
         } catch (saveError) {
           error.textContent = saveError?.coderootSilent ? "" : saveError?.message || (language === "en" ? "Save failed." : "\uC800\uC7A5\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.");
           save.disabled = false;
+          delete save.dataset.loading;
           save.querySelector("span").textContent = language === "en" ? "Save" : "\uC800\uC7A5\uD558\uAE30";
           saving = false;
         }

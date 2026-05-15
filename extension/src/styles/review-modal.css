@@ -350,12 +350,20 @@
   border-radius: 6px;
   cursor: pointer;
   display: inline-flex;
+  flex: 0 0 auto;
   font-size: 13px;
   font-weight: 900;
   gap: 6px;
   justify-content: center;
   min-height: 36px;
+  min-width: 112px;
   padding: 9px 13px;
+  white-space: nowrap;
+}
+
+.coderoot-review-secondary span,
+.coderoot-review-primary span {
+  white-space: nowrap;
 }
 
 .coderoot-review-secondary {
@@ -381,6 +389,30 @@
 .coderoot-review-primary:disabled {
   cursor: not-allowed;
   opacity: 0.62;
+}
+
+.coderoot-review-spinner {
+  animation: coderoot-review-spin 800ms linear infinite;
+  border: 2px solid rgba(255, 255, 255, 0.42);
+  border-radius: 999px;
+  border-top-color: #ffffff;
+  display: none;
+  height: 14px;
+  width: 14px;
+}
+
+.coderoot-review-primary[data-loading="true"] .coderoot-review-spinner {
+  display: inline-block;
+}
+
+.coderoot-review-primary[data-loading="true"] .coderoot-review-save-icon {
+  display: none;
+}
+
+@keyframes coderoot-review-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .coderoot-token-dialog {
