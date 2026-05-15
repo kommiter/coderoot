@@ -45,7 +45,19 @@
     if (message.type === "coderoot.github.api") {
       return requestGitHub(message);
     }
+    if (message.type === "coderoot.open.url") {
+      return openExternalUrl(message.url);
+    }
     throw new Error(`Unknown Coderoot message: ${message.type}`);
+  }
+  async function openExternalUrl(rawUrl) {
+    const url = new URL(String(rawUrl || ""));
+    const githubBase = new URL(GITHUB_CONTENT_URL_BASE);
+    if (url.origin !== githubBase.origin || !url.pathname.startsWith(githubBase.pathname)) {
+      throw new Error("Coderoot can only open configured GitHub content URLs.");
+    }
+    await chrome.tabs.create({ url: url.href });
+    return { opened: true };
   }
   async function requestGitHub({ endpoint, method = "GET", body = null, auth = true }) {
     if (!String(endpoint || "").startsWith("/")) {

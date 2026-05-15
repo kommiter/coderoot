@@ -450,6 +450,18 @@ import { escapeHtml, normalizeText } from "./utils/text.js";
     });
   }
 
+  async function openExternalGitHubUrl(url) {
+    if (hasExtensionRuntime()) {
+      try {
+        await sendRuntimeMessage({ type: "coderoot.open.url", url });
+        return;
+      } catch {
+        // Fall back to window.open for local fixtures or browser contexts without tab access.
+      }
+    }
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+
   function getCoderootApiBase(language = "ko") {
     const base = String(CODEROOT_API_BASE || "").trim().replace(/\/+$/, "");
     if (!base) {
@@ -705,8 +717,8 @@ import { escapeHtml, normalizeText } from "./utils/text.js";
     return error;
   }
 
-  async function loadGitHubVersions({ initialXml, mode, route, sourcePath }) {
-    const fallback = getFallbackVersions({ initialXml, mode, route });
+  async function loadGitHubVersions({ initialXml, route, sourcePath }) {
+    const fallback = getFallbackVersions({ initialXml, route });
     if (!hasExtensionRuntime()) {
       return {
         entries: fallback,
@@ -741,8 +753,6 @@ import { escapeHtml, normalizeText } from "./utils/text.js";
         }
       }
 
-      entries.push(...fallback.slice(1));
-
       return {
         entries,
         latestLabel: commits[0]?.commit?.committer?.date
@@ -761,21 +771,13 @@ import { escapeHtml, normalizeText } from "./utils/text.js";
     contentCache.clear();
   }
 
-  function getFallbackVersions({ route, initialXml, mode }) {
+  function getFallbackVersions({ route, initialXml }) {
     const template = formatCoderootXml(createXmlTemplate(route));
     const baseXml = formatCoderootXml(initialXml || template);
     return [
       {
         label: route.language === "en" ? "Current draft" : "현재 작성본",
         xml: baseXml
-      },
-      {
-        label: route.language === "en" ? "Clean template" : "초기 템플릿",
-        xml: template
-      },
-      {
-        label: mode === "create" ? (route.language === "en" ? "Empty content shell" : "빈 콘텐츠 틀") : (route.language === "en" ? "Empty rewrite shell" : "빈 재작성 틀"),
-        xml: formatCoderootXml(template.replace(/<content>[\s\S]*?<\/content>/, "<content>\n    <p></p>\n  </content>"))
       }
     ];
   }
@@ -1069,7 +1071,7 @@ import { escapeHtml, normalizeText } from "./utils/text.js";
 
     const github = document.createElement("a");
     github.className = "coderoot-side-link";
-    github.href = `${GITHUB_CONTENT_URL_BASE}${sourcePath}`;
+    github.href = `${GITHUB_CONTENT_URL_BASE}${encodeGitHubPath(sourcePath)}`;
     github.target = "_blank";
     github.rel = "noreferrer noopener";
     github.title = language === "en" ? "Open GitHub file" : "GitHub 파일 열기";
@@ -1079,7 +1081,7 @@ import { escapeHtml, normalizeText } from "./utils/text.js";
     const versions = document.createElement("select");
     versions.className = "coderoot-side-select";
     versions.setAttribute("aria-label", language === "en" ? "Restore version" : "되돌릴 버전 선택");
-    let versionEntries = getFallbackVersions({ route, initialXml, mode });
+    let versionEntries = getFallbackVersions({ route, initialXml });
     const renderVersionOptions = (selectedIndex = 0) => {
       versions.replaceChildren();
       versionEntries.forEach((version, index) => {
@@ -1092,9 +1094,9 @@ import { escapeHtml, normalizeText } from "./utils/text.js";
     };
     renderVersionOptions();
 
-    const state = document.createElement("button");
-    state.type = "button";
+    const state = document.createElement("div");
     state.className = "coderoot-side-state";
+    state.setAttribute("aria-live", "polite");
     state.dataset.state = "clean";
     state.innerHTML = `<span></span><p>${language === "en" ? "Original" : "원본"}</p>`;
 
@@ -1115,8 +1117,9 @@ import { escapeHtml, normalizeText } from "./utils/text.js";
     const textarea = document.createElement("textarea");
     textarea.className = "coderoot-side-textarea";
     textarea.spellcheck = false;
-    let originalXml = formatCoderootXml(initialXml || createXmlTemplate(route));
-    textarea.value = originalXml;
+    const draftXml = formatCoderootXml(initialXml || createXmlTemplate(route));
+    let originalXml = mode === "create" ? "" : draftXml;
+    textarea.value = draftXml;
 
     codeArea.append(highlight, textarea);
     editorWrap.append(gutter, codeArea);
@@ -1167,7 +1170,7 @@ import { escapeHtml, normalizeText } from "./utils/text.js";
     let currentEditorError = null;
     let previewHoverScopeKey = null;
     let revealPreviewOnNextRender = false;
-    let history = [originalXml];
+    let history = [draftXml];
     let historyIndex = 0;
 
     const syncScroll = () => {
@@ -1317,7 +1320,7 @@ import { escapeHtml, normalizeText } from "./utils/text.js";
     const refreshVersionHistory = async () => {
       versions.disabled = true;
       updated.textContent = language === "en" ? "loading history..." : "이력 불러오는 중...";
-      const result = await loadGitHubVersions({ initialXml: originalXml, mode, route, sourcePath });
+      const result = await loadGitHubVersions({ initialXml: textarea.value, route, sourcePath });
       versionEntries = result.entries;
       renderVersionOptions(0);
       updated.textContent = result.latestLabel;
@@ -1414,6 +1417,11 @@ import { escapeHtml, normalizeText } from "./utils/text.js";
       status.textContent = "";
     });
 
+    github.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      void openExternalGitHubUrl(github.href);
+    });
     close.addEventListener("click", togglePanelCollapse);
     back.addEventListener("click", () => applyHistory(historyIndex - 1));
     forward.addEventListener("click", () => applyHistory(historyIndex + 1));

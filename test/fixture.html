@@ -80,6 +80,8 @@
           const textarea = editor?.querySelector("textarea");
           const highlight = editor?.querySelector(".coderoot-side-highlight");
           const editorCancel = editor?.querySelector(".coderoot-side-close-button");
+          const githubLink = editor?.querySelector(".coderoot-side-link");
+          const state = editor?.querySelector(".coderoot-side-state");
           const previewCancel = document.querySelector(".coderoot-preview-cancel");
           const download = editor?.querySelector("button[data-coderoot-download], .coderoot-side-footer-button[download]");
 
@@ -94,6 +96,8 @@
           document.body.dataset.coderootEditorXml = textarea?.value.includes("<coderoot") ? "yes" : "no";
           document.body.dataset.coderootEditorHighlight = highlight?.innerHTML.includes("coderoot-xml-tag") ? "yes" : "no";
           document.body.dataset.coderootEditorCancel = editorCancel ? "yes" : "no";
+          document.body.dataset.coderootEditorGithubHref = githubLink?.getAttribute("href") || "";
+          document.body.dataset.coderootEditorStateTag = state?.tagName || "";
           document.body.dataset.coderootPreviewCancel = previewCancel ? "yes" : "no";
           document.body.dataset.coderootDownload = download ? "yes" : "no";
 

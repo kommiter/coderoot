@@ -56,6 +56,8 @@ try {
     'data-coderoot-editor-xml="yes"',
     'data-coderoot-editor-highlight="yes"',
     'data-coderoot-editor-cancel="yes"',
+    'data-coderoot-editor-github-href="https://github.com/kommiter/coderoot-content/blob/main/intro-test-print-in-variety/cpp.ko.xml"',
+    'data-coderoot-editor-state-tag="DIV"',
     'data-coderoot-preview-cancel="yes"',
     'data-coderoot-toggle="no"',
     'data-coderoot-download="no"',
@@ -94,6 +96,9 @@ try {
     'data-coderoot-toggle="no"',
     'data-coderoot-edit="yes"',
     'data-coderoot-editor-cancel="yes"',
+    'data-coderoot-editor-save-enabled="yes"',
+    'data-coderoot-version-count="1"',
+    'data-coderoot-template-options="no"',
     'data-coderoot-cancel-restored="yes"',
     'data-coderoot-concept-language="Python3"',
     "심화 설명 추가하기"

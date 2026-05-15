@@ -38,6 +38,7 @@
     "service_worker": "dist/background.js"
   },
   "host_permissions": [
+    "https://coderoot-omega.vercel.app/*",
     "https://api.github.com/*",
     "https://raw.githubusercontent.com/*"
   ],

@@ -955,6 +955,16 @@ int main() {
         type: "coderoot.github.api"
       });
     }
+    async function openExternalGitHubUrl(url) {
+      if (hasExtensionRuntime()) {
+        try {
+          await sendRuntimeMessage({ type: "coderoot.open.url", url });
+          return;
+        } catch {
+        }
+      }
+      window.open(url, "_blank", "noopener,noreferrer");
+    }
     function getCoderootApiBase(language = "ko") {
       const base = String(CODEROOT_API_BASE || "").trim().replace(/\/+$/, "");
       if (!base) {
@@ -1170,8 +1180,8 @@ int main() {
       error.coderootSilent = true;
       return error;
     }
-    async function loadGitHubVersions({ initialXml, mode, route, sourcePath }) {
-      const fallback = getFallbackVersions({ initialXml, mode, route });
+    async function loadGitHubVersions({ initialXml, route, sourcePath }) {
+      const fallback = getFallbackVersions({ initialXml, route });
       if (!hasExtensionRuntime()) {
         return {
           entries: fallback,
@@ -1202,7 +1212,6 @@ int main() {
           } catch {
           }
         }
-        entries.push(...fallback.slice(1));
         return {
           entries,
           latestLabel: commits[0]?.commit?.committer?.date ? formatRelativeTime(commits[0].commit.committer.date, route.language) : route.language === "en" ? "no published history" : "\uAC8C\uC2DC \uC774\uB825 \uC5C6\uC74C"
@@ -1217,21 +1226,13 @@ int main() {
     function clearContentCache() {
       contentCache.clear();
     }
-    function getFallbackVersions({ route, initialXml, mode }) {
+    function getFallbackVersions({ route, initialXml }) {
       const template = formatCoderootXml(createXmlTemplate(route));
       const baseXml = formatCoderootXml(initialXml || template);
       return [
         {
           label: route.language === "en" ? "Current draft" : "\uD604\uC7AC \uC791\uC131\uBCF8",
           xml: baseXml
-        },
-        {
-          label: route.language === "en" ? "Clean template" : "\uCD08\uAE30 \uD15C\uD50C\uB9BF",
-          xml: template
-        },
-        {
-          label: mode === "create" ? route.language === "en" ? "Empty content shell" : "\uBE48 \uCF58\uD150\uCE20 \uD2C0" : route.language === "en" ? "Empty rewrite shell" : "\uBE48 \uC7AC\uC791\uC131 \uD2C0",
-          xml: formatCoderootXml(template.replace(/<content>[\s\S]*?<\/content>/, "<content>\n    <p></p>\n  </content>"))
         }
       ];
     }
@@ -1459,7 +1460,7 @@ int main() {
       leftTools.append(close, modePill, updated);
       const github = document.createElement("a");
       github.className = "coderoot-side-link";
-      github.href = `${GITHUB_CONTENT_URL_BASE}${sourcePath}`;
+      github.href = `${GITHUB_CONTENT_URL_BASE}${encodeGitHubPath(sourcePath)}`;
       github.target = "_blank";
       github.rel = "noreferrer noopener";
       github.title = language === "en" ? "Open GitHub file" : "GitHub \uD30C\uC77C \uC5F4\uAE30";
@@ -1468,7 +1469,7 @@ int main() {
       const versions = document.createElement("select");
       versions.className = "coderoot-side-select";
       versions.setAttribute("aria-label", language === "en" ? "Restore version" : "\uB418\uB3CC\uB9B4 \uBC84\uC804 \uC120\uD0DD");
-      let versionEntries = getFallbackVersions({ route, initialXml, mode });
+      let versionEntries = getFallbackVersions({ route, initialXml });
       const renderVersionOptions = (selectedIndex = 0) => {
         versions.replaceChildren();
         versionEntries.forEach((version, index) => {
@@ -1480,9 +1481,9 @@ int main() {
         versions.value = String(Math.min(selectedIndex, Math.max(0, versionEntries.length - 1)));
       };
       renderVersionOptions();
-      const state = document.createElement("button");
-      state.type = "button";
+      const state = document.createElement("div");
       state.className = "coderoot-side-state";
+      state.setAttribute("aria-live", "polite");
       state.dataset.state = "clean";
       state.innerHTML = `<span></span><p>${language === "en" ? "Original" : "\uC6D0\uBCF8"}</p>`;
       topbar.append(leftTools, github, versions, state);
@@ -1497,8 +1498,9 @@ int main() {
       const textarea = document.createElement("textarea");
       textarea.className = "coderoot-side-textarea";
       textarea.spellcheck = false;
-      let originalXml = formatCoderootXml(initialXml || createXmlTemplate(route));
-      textarea.value = originalXml;
+      const draftXml = formatCoderootXml(initialXml || createXmlTemplate(route));
+      let originalXml = mode === "create" ? "" : draftXml;
+      textarea.value = draftXml;
       codeArea.append(highlight, textarea);
       editorWrap.append(gutter, codeArea);
       const status = document.createElement("p");
@@ -1539,7 +1541,7 @@ int main() {
       let currentEditorError = null;
       let previewHoverScopeKey = null;
       let revealPreviewOnNextRender = false;
-      let history = [originalXml];
+      let history = [draftXml];
       let historyIndex = 0;
       const syncScroll = () => {
         highlight.scrollTop = textarea.scrollTop;
@@ -1670,7 +1672,7 @@ int main() {
       const refreshVersionHistory = async () => {
         versions.disabled = true;
         updated.textContent = language === "en" ? "loading history..." : "\uC774\uB825 \uBD88\uB7EC\uC624\uB294 \uC911...";
-        const result = await loadGitHubVersions({ initialXml: originalXml, mode, route, sourcePath });
+        const result = await loadGitHubVersions({ initialXml: textarea.value, route, sourcePath });
         versionEntries = result.entries;
         renderVersionOptions(0);
         updated.textContent = result.latestLabel;
@@ -1755,6 +1757,11 @@ int main() {
         setEditorValue(version.xml);
         status.dataset.state = "success";
         status.textContent = "";
+      });
+      github.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        void openExternalGitHubUrl(github.href);
       });
       close.addEventListener("click", togglePanelCollapse);
       back.addEventListener("click", () => applyHistory(historyIndex - 1));

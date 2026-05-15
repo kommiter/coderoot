@@ -162,14 +162,14 @@
   align-items: center;
   border-radius: 6px;
   color: #d4d4d4;
-  cursor: default;
+  cursor: pointer;
   display: inline-flex;
   flex: 0 0 24px;
   font-size: 12px;
   font-weight: 800;
   height: 24px;
   justify-content: center;
-  min-width: 0;
+  min-width: 24px;
   padding: 0;
   text-decoration: none;
   white-space: nowrap;
@@ -207,6 +207,8 @@
   flex: 0 0 auto;
   min-width: fit-content;
   padding: 0;
+  pointer-events: none;
+  user-select: none;
 }
 
 .coderoot-side-state span {
