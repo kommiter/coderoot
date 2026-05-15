@@ -107,7 +107,7 @@ function parseRoute(value, conceptLanguage) {
 }
 
 function toContentPath(route) {
-  return `content/${route.slug}/${route.contentConceptKey}.${route.language}.xml`;
+  return `${route.slug}/${route.contentConceptKey}.${route.language}.xml`;
 }
 
 function normalizeConceptLanguage(language) {

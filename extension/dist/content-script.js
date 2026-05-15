@@ -4,12 +4,11 @@
   var SUPPORTED_TAB = "introduction";
   var ROUTE_CHECK_MS = 700;
   var INSERT_RETRY_MS = 120;
-  var CONTENT_DIR = "content";
   var CONTENT_GITHUB_OWNER = "kommiter";
   var CONTENT_GITHUB_REPO = "coderoot-content";
   var CONTENT_GITHUB_DEFAULT_BRANCH = "main";
   var CODEROOT_API_BASE = "https://coderoot-omega.vercel.app";
-  var REMOTE_CONTENT_URL_BASE = `https://raw.githubusercontent.com/${CONTENT_GITHUB_OWNER}/${CONTENT_GITHUB_REPO}/${CONTENT_GITHUB_DEFAULT_BRANCH}/content/`;
+  var REMOTE_CONTENT_URL_BASE = `https://raw.githubusercontent.com/${CONTENT_GITHUB_OWNER}/${CONTENT_GITHUB_REPO}/${CONTENT_GITHUB_DEFAULT_BRANCH}/`;
   var GITHUB_CONTENT_URL_BASE = `https://github.com/${CONTENT_GITHUB_OWNER}/${CONTENT_GITHUB_REPO}/blob/${CONTENT_GITHUB_DEFAULT_BRANCH}/`;
   var DEFAULT_CONCEPT_LANGUAGE = "C++14";
   var CONCEPT_LANGUAGE_PATTERNS = [
@@ -891,7 +890,7 @@ int main() {
       return resultPromise;
     }
     async function getContentPath(route) {
-      return `${CONTENT_DIR}/${route.slug}/${route.contentConceptKey || getContentConceptKey(route.conceptLanguageKey)}.${route.language}.xml`;
+      return `${route.slug}/${route.contentConceptKey || getContentConceptKey(route.conceptLanguageKey)}.${route.language}.xml`;
     }
     async function fetchTextAsset(path) {
       const url = getAssetUrl(path);
@@ -907,7 +906,7 @@ int main() {
         const base = testBase.endsWith("/") ? testBase : `${testBase}/`;
         return new URL(`${base}${path.replace(/^content\//, "")}`, document.baseURI).href;
       }
-      if (path.startsWith(`${CONTENT_DIR}/`)) {
+      if (isContentXmlPath(path)) {
         return new URL(path.replace(/^content\//, ""), REMOTE_CONTENT_URL_BASE).href;
       }
       if (globalThis.chrome?.runtime?.getURL) {
@@ -2265,7 +2264,11 @@ int main() {
       document.body.append(overlay);
     }
     function getRouteContentPath(route) {
-      return `${CONTENT_DIR}/${route.slug}/${route.contentConceptKey || getContentConceptKey(route.conceptLanguageKey)}.${route.language}.xml`;
+      return `${route.slug}/${route.contentConceptKey || getContentConceptKey(route.conceptLanguageKey)}.${route.language}.xml`;
+    }
+    function isContentXmlPath(path) {
+      const normalized = String(path || "").replace(/\\/g, "/").replace(/^content\//, "");
+      return /^[^/]+\/[^/]+\.xml$/.test(normalized) && !normalized.includes("..");
     }
     function createReviewModeButton(label, onClick) {
       const button = document.createElement("button");

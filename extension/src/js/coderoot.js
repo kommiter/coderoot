@@ -4,7 +4,6 @@ import {
   CONTENT_GITHUB_OWNER,
   CONTENT_GITHUB_REPO,
   CONCEPT_LANGUAGE_PATTERNS,
-  CONTENT_DIR,
   DEFAULT_CONCEPT_LANGUAGE,
   GITHUB_CONTENT_URL_BASE,
   INSERT_RETRY_MS,
@@ -375,7 +374,7 @@ import { escapeHtml, normalizeText } from "./utils/text.js";
   }
 
   async function getContentPath(route) {
-    return `${CONTENT_DIR}/${route.slug}/${route.contentConceptKey || getContentConceptKey(route.conceptLanguageKey)}.${route.language}.xml`;
+    return `${route.slug}/${route.contentConceptKey || getContentConceptKey(route.conceptLanguageKey)}.${route.language}.xml`;
   }
 
   async function fetchTextAsset(path) {
@@ -394,7 +393,7 @@ import { escapeHtml, normalizeText } from "./utils/text.js";
       return new URL(`${base}${path.replace(/^content\//, "")}`, document.baseURI).href;
     }
 
-    if (path.startsWith(`${CONTENT_DIR}/`)) {
+    if (isContentXmlPath(path)) {
       return new URL(path.replace(/^content\//, ""), REMOTE_CONTENT_URL_BASE).href;
     }
 
@@ -2030,7 +2029,12 @@ import { escapeHtml, normalizeText } from "./utils/text.js";
   }
 
   function getRouteContentPath(route) {
-    return `${CONTENT_DIR}/${route.slug}/${route.contentConceptKey || getContentConceptKey(route.conceptLanguageKey)}.${route.language}.xml`;
+    return `${route.slug}/${route.contentConceptKey || getContentConceptKey(route.conceptLanguageKey)}.${route.language}.xml`;
+  }
+
+  function isContentXmlPath(path) {
+    const normalized = String(path || "").replace(/\\/g, "/").replace(/^content\//, "");
+    return /^[^/]+\/[^/]+\.xml$/.test(normalized) && !normalized.includes("..");
   }
 
   function createReviewModeButton(label, onClick) {

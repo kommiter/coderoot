@@ -4,7 +4,7 @@
   var CONTENT_GITHUB_REPO = "coderoot-content";
   var CONTENT_GITHUB_DEFAULT_BRANCH = "main";
   var GITHUB_API_BASE = "https://api.github.com";
-  var REMOTE_CONTENT_URL_BASE = `https://raw.githubusercontent.com/${CONTENT_GITHUB_OWNER}/${CONTENT_GITHUB_REPO}/${CONTENT_GITHUB_DEFAULT_BRANCH}/content/`;
+  var REMOTE_CONTENT_URL_BASE = `https://raw.githubusercontent.com/${CONTENT_GITHUB_OWNER}/${CONTENT_GITHUB_REPO}/${CONTENT_GITHUB_DEFAULT_BRANCH}/`;
   var GITHUB_CONTENT_URL_BASE = `https://github.com/${CONTENT_GITHUB_OWNER}/${CONTENT_GITHUB_REPO}/blob/${CONTENT_GITHUB_DEFAULT_BRANCH}/`;
 
   // extension/src/js/background.js

@@ -6,9 +6,9 @@ const GITHUB_API_VERSION = "2022-11-28";
 
 export function getRepositoryConfig() {
   return {
-    branch: process.env.CONTENT_GITHUB_DEFAULT_BRANCH || process.env.GITHUB_DEFAULT_BRANCH || "main",
-    owner: process.env.CONTENT_GITHUB_OWNER || process.env.GITHUB_OWNER || "kommiter",
-    repo: process.env.CONTENT_GITHUB_REPO || process.env.GITHUB_REPO || "coderoot-content"
+    branch: process.env.CONTENT_GITHUB_DEFAULT_BRANCH || "main",
+    owner: process.env.CONTENT_GITHUB_OWNER || "kommiter",
+    repo: process.env.CONTENT_GITHUB_REPO || "coderoot-content"
   };
 }
 
@@ -272,7 +272,7 @@ async function parseGitHubResponse(response) {
 
 function validateContentPath(sourcePath) {
   const normalized = String(sourcePath || "").replace(/\\/g, "/");
-  if (!/^content\/[^/]+\/[^/]+\.xml$/.test(normalized) || normalized.includes("..")) {
+  if (!/^[^/]+\/[^/]+\.xml$/.test(normalized) || normalized.includes("..")) {
     const error = new Error("Coderoot API only accepts matched content XML files.");
     error.status = 400;
     throw error;

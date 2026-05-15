@@ -6,7 +6,7 @@ Coderoot is a Chrome Extension that appends deeper concept notes to the bottom o
 
 Coderoot currently targets only `intro-*` problems. `challenge-*` and `test-*` pages can contain multiple concepts inside accordions, so the extension only shows a static unsupported-page note there.
 
-Files are matched by the Codetree URL slug, the Codetree site language, and the selected problem language shown on the page, such as C++14 or Python3. In this repository, `extension/` is the packaged Chrome Extension area, while `content/` is the remote content area served through GitHub raw URLs.
+Files are matched by the Codetree URL slug, the Codetree site language, and the selected problem language shown on the page, such as C++14 or Python3. In this repository, `extension/` is the packaged Chrome Extension area, while the separate `kommiter/coderoot-content` repository stores XML files served through GitHub raw URLs.
 
 For this URL:
 
@@ -31,16 +31,16 @@ Example output:
 ```txt
 canonical: /en/trails/complete/curated-cards/intro-test-print-in-variety/introduction?concept=cpp14
 concept language: C++14
-path: content/intro-test-print-in-variety/cpp.en.xml
+path: intro-test-print-in-variety/cpp.en.xml
 ```
 
 The path format is:
 
 ```txt
-content/{url-slug}/{content-key}.{site-language}.xml
+{url-slug}/{content-key}.{site-language}.xml
 ```
 
-For example, the Korean C++14 note for `intro-print-two-numbers` is `content/intro-print-two-numbers/cpp.ko.xml`. The URL/canonical concept can still say `cpp14`, but the repository filename uses a short content key such as `cpp`, `py`, or `java`. The XML code block value `language="cpp"` is also used for syntax highlighting.
+For example, the Korean C++14 note for `intro-print-two-numbers` is `intro-print-two-numbers/cpp.ko.xml`. The URL/canonical concept can still say `cpp14`, but the repository filename uses a short content key such as `cpp`, `py`, or `java`. The XML code block value `language="cpp"` is also used for syntax highlighting.
 
 Only one file is required for the current site language and selected problem language. To support an English page or a Python3 selection, create a separate XML file for that exact combination.
 
@@ -61,7 +61,7 @@ npm run content:read -- "https://www.codetree.ai/en/trails/complete/curated-card
 
 When XML does not exist, the extension shows an `Add advanced note` button. Clicking it opens the Coderoot editor in place of Codetree's right-side code panel and lets the author draft content for the current site language and selected problem language. When XML already exists, the `Edit` button opens the current XML, and the left insertion point becomes a live preview.
 
-When the author saves, Coderoot opens GitHub in a popup and asks the deployed Coderoot API to verify the author through the GitHub App OAuth flow. The backend then creates a temporary branch, commits the matched XML file, opens a pull request, and squash-merges it only when the change is a `content/{slug}/{key}.{site-language}.xml` content file. GitHub App secrets and private keys stay on the backend; the extension stores only a short-lived Coderoot session token.
+When the author saves, Coderoot opens GitHub in a popup and asks the deployed Coderoot API to verify the author through the GitHub App OAuth flow. The backend then creates a temporary branch, commits the matched XML file, opens a pull request, and squash-merges it only when the change is a `{slug}/{key}.{site-language}.xml` content file in `kommiter/coderoot-content`. GitHub App secrets and private keys stay on the backend; the extension stores only a short-lived Coderoot session token.
 
 ## Writing Goals
 

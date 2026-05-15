@@ -161,7 +161,7 @@ function contentPath(canonicalPath) {
   const offset = parts[0] === "ko" || parts[0] === "en" ? 1 : 0;
   const slug = parts[offset + 3];
   const concept = toContentConceptKey(url.searchParams.get("concept") || "unknown");
-  return `content/${slug}/${concept}.${language}.xml`;
+  return `${slug}/${concept}.${language}.xml`;
 }
 
 function toContentConceptKey(concept) {

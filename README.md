@@ -21,12 +21,13 @@ coderoot is a Chrome Extension that appends additional concept notes to supporte
 
 It does not replace Codetree's original lesson. When a matching XML file exists, coderoot inserts the rendered note right before Codetree's footer area, such as the "Was this content helpful?" section.
 
-The project is built around two pieces:
+The project is built around three pieces:
 
 - a Chrome Extension under `extension/`
-- XML concept notes under `content/`
+- a small GitHub App backend under `api/`
+- XML concept notes in the separate `kommiter/coderoot-content` repository
 
-The extension package stays small because `content/` is loaded from GitHub raw URLs instead of being bundled into the extension.
+The extension package stays small because XML content is loaded from GitHub raw URLs instead of being bundled into the extension.
 
 ## Quick Start
 
@@ -154,16 +155,16 @@ Only `intro-*` slugs are treated as one-to-one concept pages.
 Content files use this path shape:
 
 ```text
-content/{codetree-slug}/{content-key}.{site-language}.xml
+{codetree-slug}/{content-key}.{site-language}.xml
 ```
 
 Examples:
 
 ```text
-content/intro-print-two-numbers/cpp.ko.xml
-content/intro-test-print-in-variety/cpp.en.xml
-content/intro-some-problem/py.ko.xml
-content/intro-some-problem/java.en.xml
+intro-print-two-numbers/cpp.ko.xml
+intro-test-print-in-variety/cpp.en.xml
+intro-some-problem/py.ko.xml
+intro-some-problem/java.en.xml
 ```
 
 The URL/canonical concept can be more specific, while the repository filename keeps a short content key.
@@ -248,7 +249,7 @@ The editor currently provides:
 - XML validation
 - save-review modal with a diff-style view
 - GitHub commit history restore dropdown
-- GitHub App save flow that creates a branch, commits the XML, opens a pull request, and auto-merges matched `content/**/*.xml` changes
+- GitHub App save flow that creates a branch, commits the XML, opens a pull request, and auto-merges matched XML content changes
 
 On the first save, coderoot opens GitHub in a popup and asks the deployed Coderoot API to verify the author through a GitHub App OAuth flow. The extension stores only a short-lived Coderoot session token. GitHub App secrets and private keys stay on the backend.
 
@@ -272,10 +273,10 @@ The save button runs this workflow:
 1. Create a temporary branch from `main`.
 2. Create or update the matched XML file.
 3. Open a pull request.
-4. If the changed file is under `content/` and is an XML content file, squash-merge the pull request.
+4. If the changed file matches `{slug}/{key}.{language}.xml`, squash-merge the pull request.
 5. Delete the temporary branch when GitHub allows it.
 
-Only `content/{slug}/{key}.{language}.xml` changes are accepted by the extension save endpoint and attempted for auto-merge. Other repository changes should be made through a normal GitHub pull request and reviewed manually.
+Only `{slug}/{key}.{language}.xml` changes are accepted by the extension save endpoint and attempted for auto-merge. Other repository changes should be made through a normal GitHub pull request and reviewed manually.
 
 If repository rules block direct merging of an eligible content XML change, coderoot keeps the review modal open and shows the GitHub error message.
 
@@ -307,7 +308,7 @@ The `Release` GitHub Actions workflow builds the extension, packages `extension/
 The runtime content URL is currently configured for:
 
 ```text
-https://raw.githubusercontent.com/kommiter/coderoot-content/main/content/
+https://raw.githubusercontent.com/kommiter/coderoot-content/main/
 ```
 
 If the repository owner, repository name, or default branch changes, update:
@@ -345,7 +346,7 @@ coderoot/
 ├── LICENSE
 ├── README.md
 ├── README.ko.md
-├── content/
+├── api/
 ├── docs/
 ├── extension/
 │   ├── dist/
@@ -353,6 +354,7 @@ coderoot/
 │   └── manifest.json
 ├── manifest.json
 ├── package.json
+├── public/
 ├── scripts/
 └── test/
 ```

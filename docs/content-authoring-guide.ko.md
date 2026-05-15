@@ -6,7 +6,7 @@ Coderoot는 Codetree의 기존 설명을 대체하지 않고, `introduction` 탭
 
 Coderoot는 현재 `intro-*` 문제만 심화 콘텐츠 대상으로 봅니다. `challenge-*`, `test-*`는 여러 기본 개념이 accordion으로 들어갈 수 있어 정적 안내 문구만 표시합니다.
 
-파일 매칭은 URL의 문제 slug, Codetree 사이트 언어, 화면에서 선택된 문제 언어(C++14, Python3 등)를 조합해 사람이 읽을 수 있는 경로로 관리합니다. 이 레포에서 `extension/`은 배포 대상이고, `content/`는 GitHub raw로 읽는 원격 콘텐츠 영역입니다.
+파일 매칭은 URL의 문제 slug, Codetree 사이트 언어, 화면에서 선택된 문제 언어(C++14, Python3 등)를 조합해 사람이 읽을 수 있는 경로로 관리합니다. 이 레포에서 `extension/`은 배포 대상이고, 별도 `kommiter/coderoot-content` 저장소가 GitHub raw로 읽는 XML 파일을 저장합니다.
 
 예를 들어 아래 URL은:
 
@@ -31,16 +31,16 @@ npm run content:path -- "https://www.codetree.ai/ko/trails/complete/curated-card
 ```txt
 canonical: /ko/trails/complete/curated-cards/intro-test-print-in-variety/introduction?concept=cpp14
 concept language: C++14
-path: content/intro-test-print-in-variety/cpp.ko.xml
+path: intro-test-print-in-variety/cpp.ko.xml
 ```
 
 경로 형식은 다음과 같습니다.
 
 ```txt
-content/{url-slug}/{content-key}.{site-language}.xml
+{url-slug}/{content-key}.{site-language}.xml
 ```
 
-예를 들어 `intro-print-two-numbers`의 한국어 C++14 설명은 `content/intro-print-two-numbers/cpp.ko.xml`입니다. URL/canonical concept에는 `cpp14`처럼 선택 언어를 자세히 남기지만, 레포의 파일명은 `cpp`, `py`, `java`처럼 짧은 content key를 유지합니다. XML 내부 코드 블록의 `language="cpp"`도 syntax highlighting용 이름이라 그대로 사용합니다.
+예를 들어 `intro-print-two-numbers`의 한국어 C++14 설명은 `intro-print-two-numbers/cpp.ko.xml`입니다. URL/canonical concept에는 `cpp14`처럼 선택 언어를 자세히 남기지만, 레포의 파일명은 `cpp`, `py`, `java`처럼 짧은 content key를 유지합니다. XML 내부 코드 블록의 `language="cpp"`도 syntax highlighting용 이름이라 그대로 사용합니다.
 
 현재 사이트 언어와 현재 선택된 문제 언어의 파일 하나만 있으면 해당 화면에서 동작합니다. 영어 페이지나 Python3 선택 상태까지 지원하려면 URL 또는 `--concept-language`를 바꿔 별도 XML 파일을 작성합니다.
 
@@ -61,7 +61,7 @@ npm run content:read -- "https://www.codetree.ai/ko/trails/complete/curated-card
 
 확장 프로그램 안에서는 XML이 없으면 `심화 설명 추가하기` 버튼을 표시합니다. 이 버튼을 누르면 Codetree 오른쪽 코드 패널 자리에 Coderoot 에디터가 열리고, 현재 사이트 언어와 선택된 문제 언어의 초안을 만들 수 있습니다. 이미 파일이 있으면 `수정하기` 버튼으로 기존 XML을 열 수 있고, 왼쪽 삽입 위치에는 미리보기가 표시됩니다.
 
-작성자가 저장하면 Coderoot는 GitHub 팝업을 열고, 배포된 Coderoot API가 GitHub App OAuth flow로 작성자를 확인합니다. 이후 백엔드가 임시 브랜치를 만들고, 매칭되는 XML 파일을 커밋하고, Pull Request를 생성한 뒤 변경 파일이 `content/{slug}/{key}.{site-language}.xml` 콘텐츠 파일일 때만 squash merge합니다. GitHub App secret과 private key는 백엔드에만 두며, 확장 프로그램에는 짧게 유지되는 Coderoot session token만 저장합니다.
+작성자가 저장하면 Coderoot는 GitHub 팝업을 열고, 배포된 Coderoot API가 GitHub App OAuth flow로 작성자를 확인합니다. 이후 백엔드가 임시 브랜치를 만들고, 매칭되는 XML 파일을 커밋하고, Pull Request를 생성한 뒤 `kommiter/coderoot-content`의 변경 파일이 `{slug}/{key}.{site-language}.xml` 콘텐츠 파일일 때만 squash merge합니다. GitHub App secret과 private key는 백엔드에만 두며, 확장 프로그램에는 짧게 유지되는 Coderoot session token만 저장합니다.
 
 ## 작성 목적
 
