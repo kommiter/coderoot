@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Coderoot Privacy Policy</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      body {
+        margin: 0;
+        padding: 32px 20px;
+      }
+
+      main {
+        margin: 0 auto;
+        max-width: 760px;
+      }
+
+      h1 {
+        font-size: 30px;
+        letter-spacing: 0;
+        line-height: 1.2;
+        margin: 0 0 8px;
+      }
+
+      h2 {
+        font-size: 18px;
+        margin: 28px 0 8px;
+      }
+
+      p,
+      li {
+        color: color-mix(in srgb, currentColor 72%, transparent);
+        line-height: 1.7;
+      }
+
+      p {
+        margin: 0 0 12px;
+      }
+
+      ul {
+        margin: 0;
+        padding-left: 22px;
+      }
+
+      a {
+        color: #7c3aed;
+      }
+
+      .updated {
+        color: color-mix(in srgb, currentColor 55%, transparent);
+        font-size: 14px;
+        margin-bottom: 28px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Coderoot Privacy Policy</h1>
+      <p class="updated">Last updated: May 15, 2026</p>
+
+      <p>Coderoot is a Chrome Extension that adds advanced concept notes to supported Codetree introduction pages. This policy explains what information Coderoot handles and why.</p>
+
+      <h2>Information Coderoot handles</h2>
+      <ul>
+        <li>Codetree page context, such as the current page URL, site language, problem slug, and selected problem language, to find the matching XML note.</li>
+        <li>XML note content that an authorized contributor writes or edits in the Coderoot editor.</li>
+        <li>GitHub account identity returned through GitHub OAuth, such as GitHub username, to verify whether a contributor is allowed to save XML content.</li>
+        <li>A short-lived Coderoot session token stored by the extension after GitHub verification. Coderoot does not store GitHub personal access tokens in the extension.</li>
+      </ul>
+
+      <h2>How the information is used</h2>
+      <p>Coderoot uses this information only to provide its single purpose: loading, previewing, editing, and saving Coderoot XML concept notes for Codetree pages.</p>
+      <p>When a contributor saves XML content, the deployed Coderoot API writes the change to the Coderoot content repository through the installed GitHub App. Approved XML content may become public in the Coderoot content repository.</p>
+
+      <h2>Remote content and code</h2>
+      <p>Coderoot fetches XML notes and GitHub metadata from remote services as data. The extension does not execute remotely hosted JavaScript. Extension JavaScript and CSS are packaged inside the extension.</p>
+
+      <h2>Sharing and sale of data</h2>
+      <p>Coderoot does not sell user data. Coderoot does not transfer user data to third parties for advertising, creditworthiness, or unrelated purposes.</p>
+
+      <h2>Data retention</h2>
+      <p>Coderoot session data may be stored locally by the extension and can be cleared by removing the extension or clearing extension storage. XML content saved to GitHub follows the retention and history behavior of the Coderoot content repository.</p>
+
+      <h2>Contact</h2>
+      <p>For questions, open an issue at <a href="https://github.com/kommiter/coderoot">https://github.com/kommiter/coderoot</a>.</p>
+    </main>
+  </body>
+</html>
