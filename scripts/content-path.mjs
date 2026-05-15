@@ -1,15 +1,18 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
+import { dirname, resolve } from "node:path";
 
 const commands = new Set(["path", "read", "write", "update"]);
 const rawArgs = process.argv.slice(2);
 let conceptLanguage = "C++14";
+let contentRoot = process.env.CODEROOT_CONTENT_DIR || ".";
 const args = [];
 
 for (let i = 0; i < rawArgs.length; i++) {
   const arg = rawArgs[i];
   if (arg === "--concept-language" || arg === "--code-language") {
     conceptLanguage = rawArgs[++i] || conceptLanguage;
+  } else if (arg === "--content-root") {
+    contentRoot = rawArgs[++i] || contentRoot;
   } else {
     args.push(arg);
   }
@@ -30,18 +33,21 @@ if (!input) {
     "  node scripts/content-path.mjs update <codetree-url-or-path> <source.xml|->",
     "",
     "Options:",
-    "  --concept-language <label>  Selected Codetree concept language. Defaults to C++14."
+    "  --concept-language <label>  Selected Codetree concept language. Defaults to C++14.",
+    "  --content-root <dir>        Local coderoot-content repository path for read/write."
   ].join("\n"));
   process.exit(1);
 }
 
 const route = parseRoute(input, conceptLanguage);
-const filePath = toContentPath(route);
+const relativeFilePath = toContentPath(route);
+const filePath = resolve(contentRoot, relativeFilePath);
 
 if (command === "read") {
   if (!existsSync(filePath)) {
     console.error(`Missing content file for ${route.canonicalPath}`);
-    console.error(`path: ${filePath}`);
+    console.error(`path: ${relativeFilePath}`);
+    console.error(`file: ${filePath}`);
     process.exit(2);
   }
 
@@ -59,11 +65,15 @@ if (command === "read") {
 
   console.log(`canonical: ${route.canonicalPath}`);
   console.log(`concept language: ${route.conceptLanguage}`);
+  console.log(`path: ${relativeFilePath}`);
   console.log(`${existed ? "updated" : "created"}: ${filePath}`);
 } else {
   console.log(`canonical: ${route.canonicalPath}`);
   console.log(`concept language: ${route.conceptLanguage}`);
-  console.log(`path: ${filePath}`);
+  console.log(`path: ${relativeFilePath}`);
+  if (contentRoot !== ".") {
+    console.log(`file: ${filePath}`);
+  }
 }
 
 function parseRoute(value, conceptLanguage) {

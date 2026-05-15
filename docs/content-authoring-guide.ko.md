@@ -1,4 +1,4 @@
-# Coderoot Content Authoring Guide
+# Coderoot 콘텐츠 작성 가이드
 
 Coderoot는 Codetree의 기존 설명을 대체하지 않고, `introduction` 탭 하단에 심화 설명을 덧붙이는 Chrome Extension입니다. 이 문서는 LLM과 함께 새 문제의 심화 콘텐츠를 작성할 때 쓰는 가이드입니다.
 
@@ -46,17 +46,17 @@ path: intro-test-print-in-variety/cpp.ko.xml
 
 ## 파일 생성과 수정
 
-초안을 파일로 저장한 뒤 URL 기준 경로에 생성/업데이트합니다.
+초안을 파일로 저장한 뒤 로컬에 clone한 `coderoot-content` 저장소의 URL 기준 경로에 생성/업데이트합니다.
 
 ```bash
-npm run content:write -- "https://www.codetree.ai/ko/trails/complete/curated-cards/intro-.../introduction" ./draft.xml
-npm run content:write -- --concept-language Python3 "https://www.codetree.ai/ko/trails/complete/curated-cards/intro-.../introduction" ./draft-python3.xml
+npm run content:write -- --content-root ../coderoot-content "https://www.codetree.ai/ko/trails/complete/curated-cards/intro-.../introduction" ./draft.xml
+npm run content:write -- --content-root ../coderoot-content --concept-language Python3 "https://www.codetree.ai/ko/trails/complete/curated-cards/intro-.../introduction" ./draft-python3.xml
 ```
 
 이미 작성된 XML을 읽을 때도 URL만 사용합니다.
 
 ```bash
-npm run content:read -- "https://www.codetree.ai/ko/trails/complete/curated-cards/intro-.../introduction"
+npm run content:read -- --content-root ../coderoot-content "https://www.codetree.ai/ko/trails/complete/curated-cards/intro-.../introduction"
 ```
 
 확장 프로그램 안에서는 XML이 없으면 `심화 설명 추가하기` 버튼을 표시합니다. 이 버튼을 누르면 Codetree 오른쪽 코드 패널 자리에 Coderoot 에디터가 열리고, 현재 사이트 언어와 선택된 문제 언어의 초안을 만들 수 있습니다. 이미 파일이 있으면 `수정하기` 버튼으로 기존 XML을 열 수 있고, 왼쪽 삽입 위치에는 미리보기가 표시됩니다.

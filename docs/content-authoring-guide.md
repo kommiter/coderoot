@@ -46,17 +46,17 @@ Only one file is required for the current site language and selected problem lan
 
 ## Creating and Updating Files
 
-Save a draft XML file, then create or update the URL-matched path:
+Save a draft XML file, then create or update the URL-matched path in your local `coderoot-content` clone:
 
 ```bash
-npm run content:write -- "https://www.codetree.ai/en/trails/complete/curated-cards/intro-.../introduction" ./draft.xml
-npm run content:write -- --concept-language Python3 "https://www.codetree.ai/en/trails/complete/curated-cards/intro-.../introduction" ./draft-python3.xml
+npm run content:write -- --content-root ../coderoot-content "https://www.codetree.ai/en/trails/complete/curated-cards/intro-.../introduction" ./draft.xml
+npm run content:write -- --content-root ../coderoot-content --concept-language Python3 "https://www.codetree.ai/en/trails/complete/curated-cards/intro-.../introduction" ./draft-python3.xml
 ```
 
 Read an existing XML file with only the URL:
 
 ```bash
-npm run content:read -- "https://www.codetree.ai/en/trails/complete/curated-cards/intro-.../introduction"
+npm run content:read -- --content-root ../coderoot-content "https://www.codetree.ai/en/trails/complete/curated-cards/intro-.../introduction"
 ```
 
 When XML does not exist, the extension shows an `Add advanced note` button. Clicking it opens the Coderoot editor in place of Codetree's right-side code panel and lets the author draft content for the current site language and selected problem language. When XML already exists, the `Edit` button opens the current XML, and the left insertion point becomes a live preview.

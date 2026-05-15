@@ -11,7 +11,7 @@ Advanced concept notes for Codetree.
 
 **Keep the original lesson. Add a deeper explanation below it.**
 
-[Quick Start](#quick-start) · [Backend](#backend-deployment) · [Content Files](#content-files) · [Authoring](#authoring-content) · [Licensing](#licensing) · [Publishing](#publishing-notes)
+[Install](#install-for-codetree-users) · [Development](#development-quick-start) · [Backend](#backend-deployment) · [Content Files](#content-files) · [Authoring](#authoring-content) · [Licensing](#licensing) · [Publishing](#publishing-notes)
 
 ---
 
@@ -29,7 +29,33 @@ The project is built around three pieces:
 
 The extension package stays small because XML content is loaded from GitHub raw URLs instead of being bundled into the extension.
 
-## Quick Start
+## Install for Codetree Users
+
+Most people do not need to clone this repository.
+
+| Goal | What to use |
+| --- | --- |
+| Use Coderoot on Codetree | Install the Chrome Web Store item after it is approved, or download the latest GitHub Release zip. |
+| Test the current release manually | Download `coderoot-vX.Y.Z.zip` from [GitHub Releases](https://github.com/kommiter/coderoot/releases). |
+| Edit extension/backend code | Clone this `kommiter/coderoot` repository. |
+| Write or review XML notes | Use the in-page Coderoot editor, or work in `kommiter/coderoot-content`. |
+
+Manual install from a GitHub Release:
+
+1. Open [GitHub Releases](https://github.com/kommiter/coderoot/releases).
+2. Download the latest `coderoot-vX.Y.Z.zip` asset.
+3. Unzip it.
+4. Open `chrome://extensions`.
+5. Turn on `Developer mode`.
+6. Click `Load unpacked`.
+7. Select the unzipped folder that contains `manifest.json` at its top level.
+8. Open a supported Codetree `introduction` page.
+
+Do not select the `coderoot-content` repository as a Chrome Extension. That repository contains XML notes only.
+
+Also avoid GitHub's green `Code > Download ZIP` button unless you want the full source tree for development. For manual Chrome installation, use the release asset named `coderoot-vX.Y.Z.zip`.
+
+## Development Quick Start
 
 ### Step 1: Clone or open the project
 
@@ -182,6 +208,8 @@ Only one file is required for the exact site language and selected problem langu
 
 ## Content Commands
 
+These commands are local authoring helpers. `content:path` can run anywhere in this repository. `content:read` and `content:write` should point at a local clone of `kommiter/coderoot-content` with `--content-root` or `CODEROOT_CONTENT_DIR`.
+
 Check the XML path for a Codetree URL:
 
 ```bash
@@ -197,13 +225,13 @@ npm run content:path -- --concept-language Python3 "https://www.codetree.ai/ko/t
 Create or update XML from a draft file:
 
 ```bash
-npm run content:write -- "https://www.codetree.ai/ko/trails/complete/curated-cards/intro-print-two-numbers/introduction" ./draft.xml
+npm run content:write -- --content-root ../coderoot-content "https://www.codetree.ai/ko/trails/complete/curated-cards/intro-print-two-numbers/introduction" ./draft.xml
 ```
 
 Read existing XML:
 
 ```bash
-npm run content:read -- "https://www.codetree.ai/ko/trails/complete/curated-cards/intro-print-two-numbers/introduction"
+npm run content:read -- --content-root ../coderoot-content "https://www.codetree.ai/ko/trails/complete/curated-cards/intro-print-two-numbers/introduction"
 ```
 
 ## Authoring Content
