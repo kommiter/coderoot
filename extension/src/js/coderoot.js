@@ -34,6 +34,7 @@ import { escapeHtml, normalizeText } from "./utils/text.js";
   let activeEditorCancel = null;
   let activeEditRouteKey = "";
   let originalFaviconLinks = null;
+  let extensionRuntimeInvalidated = false;
 
   function getCurrentUrl() {
     const testUrl = document.documentElement?.dataset?.coderootTestUrl;
@@ -112,13 +113,32 @@ import { escapeHtml, normalizeText } from "./utils/text.js";
 
   function clearArticleState(article) {
     if (!article) return;
+    const card = getCoderootCard(article) || article.closest(".coderoot-card-expanded");
     delete article.dataset.coderootExpanded;
     delete article.dataset.coderootEditing;
     article.style.removeProperty("--coderoot-gradient-top");
     article.classList.remove("coderoot-article");
-
-    const card = article.closest(".coderoot-card-expanded");
+    card?.style.removeProperty("--coderoot-gradient-top");
     card?.classList.remove("coderoot-card-expanded");
+  }
+
+  function getCoderootCard(article) {
+    const parent = article?.parentElement;
+    return parent?.tagName === "DIV" ? parent : article?.closest("div");
+  }
+
+  function markArticleWithCoderootAccent(root, article, editing = false) {
+    if (!root || !article) return;
+    const card = getCoderootCard(article);
+    article.classList.add("coderoot-article");
+    article.dataset.coderootExpanded = "true";
+    if (editing) {
+      article.dataset.coderootEditing = "true";
+    } else {
+      delete article.dataset.coderootEditing;
+    }
+    card?.classList.add("coderoot-card-expanded");
+    requestAnimationFrame(() => updateGradientTop(root, article));
   }
 
   async function applyCoderoot() {
@@ -146,6 +166,7 @@ import { escapeHtml, normalizeText } from "./utils/text.js";
     const existing = targets.article.querySelector(ROOT_SELECTOR);
     if (existing?.dataset.coderootKey === key) {
       placeRootAtFooter(existing, targets);
+      markArticleWithCoderootAccent(existing, targets.article, activeEditRouteKey === key);
       return;
     }
 
@@ -175,7 +196,7 @@ import { escapeHtml, normalizeText } from "./utils/text.js";
       placeRootAtFooter(root, latestTargets);
       return;
     } else {
-      root = buildUnsupportedRoot(route);
+      root = buildUnsupportedRoot(route, targets.article);
     }
 
     placeRootAtFooter(root, targets);
@@ -397,46 +418,90 @@ import { escapeHtml, normalizeText } from "./utils/text.js";
       return new URL(path.replace(/^content\//, ""), REMOTE_CONTENT_URL_BASE).href;
     }
 
-    if (globalThis.chrome?.runtime?.getURL) {
-      return chrome.runtime.getURL(getRuntimeAssetPath(path));
+    const runtime = getChromeRuntime();
+    if (runtime?.getURL) {
+      try {
+        return runtime.getURL(getRuntimeAssetPath(path));
+      } catch (error) {
+        markExtensionRuntimeInvalid(error);
+      }
     }
 
     return new URL(`/${path}`, globalThis.location?.origin || "https://www.codetree.ai").href;
   }
 
   function getRuntimeAssetPath(path) {
-    const iconPath = globalThis.chrome?.runtime?.getManifest?.()?.icons?.["16"] || "";
+    let iconPath = "";
+    const runtime = getChromeRuntime();
+    if (runtime?.getManifest) {
+      try {
+        iconPath = runtime.getManifest()?.icons?.["16"] || "";
+      } catch (error) {
+        markExtensionRuntimeInvalid(error);
+      }
+    }
     if (!iconPath.startsWith("extension/")) return path;
     if (path.startsWith("extension/")) return path;
     return `extension/${path}`;
   }
 
+  function getChromeRuntime() {
+    if (extensionRuntimeInvalidated) return null;
+    try {
+      const runtime = globalThis.chrome?.runtime;
+      if (!runtime?.id) return null;
+      return runtime;
+    } catch (error) {
+      markExtensionRuntimeInvalid(error);
+      return null;
+    }
+  }
+
+  function markExtensionRuntimeInvalid(error) {
+    if (!isExtensionRuntimeInvalidError(error)) return;
+    extensionRuntimeInvalidated = true;
+    clearTimeout(applyTimer);
+  }
+
+  function isExtensionRuntimeInvalidError(error) {
+    return /extension context invalidated/i.test(String(error?.message || error || ""));
+  }
+
   function hasExtensionRuntime() {
-    return Boolean(globalThis.chrome?.runtime?.id && globalThis.chrome?.runtime?.sendMessage);
+    const runtime = getChromeRuntime();
+    return Boolean(runtime?.sendMessage);
   }
 
   function sendRuntimeMessage(message) {
     return new Promise((resolve, reject) => {
-      if (!hasExtensionRuntime()) {
+      const runtime = getChromeRuntime();
+      if (!runtime?.sendMessage) {
         reject(new Error("Coderoot extension runtime is not available."));
         return;
       }
 
-      chrome.runtime.sendMessage(message, (response) => {
-        const runtimeError = chrome.runtime.lastError;
-        if (runtimeError) {
-          reject(new Error(runtimeError.message));
-          return;
-        }
-        if (!response?.ok) {
-          const error = new Error(response?.error?.message || "Coderoot background request failed.");
-          error.status = response?.error?.status || 0;
-          error.data = response?.error?.data || null;
-          reject(error);
-          return;
-        }
-        resolve(response.data);
-      });
+      try {
+        runtime.sendMessage(message, (response) => {
+          const runtimeError = runtime.lastError;
+          if (runtimeError) {
+            const error = new Error(runtimeError.message);
+            markExtensionRuntimeInvalid(error);
+            reject(error);
+            return;
+          }
+          if (!response?.ok) {
+            const error = new Error(response?.error?.message || "Coderoot background request failed.");
+            error.status = response?.error?.status || 0;
+            error.data = response?.error?.data || null;
+            reject(error);
+            return;
+          }
+          resolve(response.data);
+        });
+      } catch (error) {
+        markExtensionRuntimeInvalid(error);
+        reject(error);
+      }
     });
   }
 
@@ -563,6 +628,12 @@ import { escapeHtml, normalizeText } from "./utils/text.js";
     const session = await openGitHubAppDialog(language);
     if (!session?.token) return "";
     await setCoderootSession(session);
+    showCoderootToast({
+      language,
+      message: language === "en"
+        ? `GitHub connected${session.login ? ` as ${session.login}` : ""}.`
+        : `GitHub 연결이 완료되었습니다${session.login ? `: ${session.login}` : ""}.`
+    });
     return session.token;
   }
 
@@ -584,8 +655,16 @@ import { escapeHtml, normalizeText } from "./utils/text.js";
       const description = document.createElement("p");
       description.textContent =
         language === "en"
-          ? "Coderoot opens GitHub in a popup, verifies your account, then asks the Coderoot API to save this XML through the installed GitHub App. No personal access token is stored in the extension."
-          : "Coderoot가 팝업으로 GitHub 계정을 확인한 뒤, 설치된 GitHub App 권한으로 Coderoot API에 XML 저장을 요청합니다. 확장 프로그램에는 personal access token을 저장하지 않습니다.";
+          ? "Coderoot will open GitHub in a popup to verify your account. After GitHub confirms you, the extension stores only a short-lived Coderoot session. XML saves are sent to the Coderoot API and written through the installed GitHub App; your personal access token is never stored in the extension."
+          : "Coderoot가 팝업으로 GitHub 계정을 확인합니다. GitHub 확인이 끝나면 확장 프로그램에는 짧게 유지되는 Coderoot 세션만 저장됩니다. XML 저장은 Coderoot API가 설치된 GitHub App 권한으로 처리하며, personal access token은 확장 프로그램에 저장하지 않습니다.";
+
+      const trust = document.createElement("div");
+      trust.className = "coderoot-token-trust";
+      trust.innerHTML = `
+        <p><span></span>${language === "en" ? "Uses the installed GitHub App permissions for the content repository." : "콘텐츠 레포에 설치된 GitHub App 권한만 사용합니다."}</p>
+        <p><span></span>${language === "en" ? "The extension keeps only the Coderoot session token." : "확장 프로그램에는 Coderoot 세션 토큰만 보관합니다."}</p>
+        <p><span></span>${language === "en" ? "You can revoke access from GitHub App settings at any time." : "언제든 GitHub App 설정에서 접근 권한을 해제할 수 있습니다."}</p>
+      `;
 
       const error = document.createElement("p");
       error.className = "coderoot-token-error";
@@ -601,7 +680,7 @@ import { escapeHtml, normalizeText } from "./utils/text.js";
       const save = document.createElement("button");
       save.type = "button";
       save.className = "coderoot-token-primary";
-      save.textContent = language === "en" ? "Continue with GitHub" : "GitHub로 계속하기";
+      save.innerHTML = `<span>${language === "en" ? "Continue with GitHub" : "GitHub로 계속하기"}</span><i class="coderoot-review-spinner" aria-hidden="true"></i>`;
 
       const cleanup = (value) => {
         window.removeEventListener("message", handleMessage, false);
@@ -627,7 +706,14 @@ import { escapeHtml, normalizeText } from "./utils/text.js";
           return;
         }
         save.disabled = true;
-        save.textContent = language === "en" ? "Waiting for GitHub..." : "GitHub 응답 대기 중...";
+        save.dataset.loading = "true";
+        save.querySelector("span").textContent = language === "en" ? "Waiting for GitHub..." : "GitHub 응답 대기 중...";
+      };
+
+      const resetSubmit = () => {
+        save.disabled = false;
+        delete save.dataset.loading;
+        save.querySelector("span").textContent = language === "en" ? "Continue with GitHub" : "GitHub로 계속하기";
       };
 
       const handleMessage = (event) => {
@@ -635,15 +721,13 @@ import { escapeHtml, normalizeText } from "./utils/text.js";
         if (event.data?.source !== "coderoot") return;
         if (event.data?.type === "github.error") {
           error.textContent = event.data.error || (language === "en" ? "GitHub connection failed." : "GitHub 연결에 실패했습니다.");
-          save.disabled = false;
-          save.textContent = language === "en" ? "Continue with GitHub" : "GitHub로 계속하기";
+          resetSubmit();
           return;
         }
         if (event.data?.type !== "github.connected") return;
         if (!event.data.token) {
           error.textContent = language === "en" ? "GitHub connection did not return a session." : "GitHub 연결 세션을 받지 못했습니다.";
-          save.disabled = false;
-          save.textContent = language === "en" ? "Continue with GitHub" : "GitHub로 계속하기";
+          resetSubmit();
           return;
         }
         cleanup({
@@ -676,7 +760,7 @@ import { escapeHtml, normalizeText } from "./utils/text.js";
       document.addEventListener("keydown", handleKeydown, true);
 
       footer.append(cancel, save);
-      dialog.append(title, description, error, footer);
+      dialog.append(title, description, trust, error, footer);
       overlay.append(dialog);
       document.body.append(overlay);
       save.focus({ preventScroll: true });
@@ -931,7 +1015,7 @@ import { escapeHtml, normalizeText } from "./utils/text.js";
       });
     });
 
-    article.dataset.coderootExpanded = "true";
+    markArticleWithCoderootAccent(root, article);
 
     return root;
   }
@@ -994,11 +1078,12 @@ import { escapeHtml, normalizeText } from "./utils/text.js";
 
     panel.append(badge, title, body, edit);
     root.append(panel);
+    markArticleWithCoderootAccent(root, article);
 
     return root;
   }
 
-  function buildUnsupportedRoot(route) {
+  function buildUnsupportedRoot(route, article) {
     const root = document.createElement("section");
     root.className = "coderoot-shell coderoot-unsupported";
     root.dataset.coderootRoot = "true";
@@ -1032,6 +1117,7 @@ import { escapeHtml, normalizeText } from "./utils/text.js";
 
     panel.append(badge, title, body);
     root.append(panel);
+    markArticleWithCoderootAccent(root, article);
 
     return root;
   }
@@ -1124,7 +1210,7 @@ import { escapeHtml, normalizeText } from "./utils/text.js";
     codeArea.append(highlight, textarea);
     editorWrap.append(gutter, codeArea);
 
-    const status = document.createElement("p");
+    const status = document.createElement("div");
     status.className = "coderoot-side-status";
 
     const footbar = document.createElement("div");
@@ -1284,6 +1370,13 @@ import { escapeHtml, normalizeText } from "./utils/text.js";
       revealEditorLine(targetLine);
     };
 
+    status.addEventListener("click", (event) => {
+      const target = event.target?.closest?.("[data-coderoot-error-line]");
+      if (!target) return;
+      event.preventDefault();
+      goToEditorLine(Number(target.dataset.coderootErrorLine));
+    });
+
     const editorApi = {
       clearScopeIndex(index) {
         if (previewHoverScopeKey !== String(index)) return;
@@ -1313,7 +1406,7 @@ import { escapeHtml, normalizeText } from "./utils/text.js";
         onPreview?.(problem, cancelEditing, editorApi);
         renderEditorSurface();
       } else {
-        renderInvalidPreviewRoot({ root, article, route, message: status.textContent, onCancel: cancelEditing });
+        renderInvalidPreviewRoot({ root, article, route, message: getEditorStatusMessage(status), onCancel: cancelEditing });
       }
     };
 
@@ -1413,8 +1506,7 @@ import { escapeHtml, normalizeText } from "./utils/text.js";
       const version = versionEntries[Number(versions.value)];
       if (!version) return;
       setEditorValue(version.xml);
-      status.dataset.state = "success";
-      status.textContent = "";
+      clearEditorDiagnostics(status);
     });
 
     github.addEventListener("click", (event) => {
@@ -1452,20 +1544,17 @@ import { escapeHtml, normalizeText } from "./utils/text.js";
             sourcePath,
             xmlText: textarea.value
           });
-          originalXml = textarea.value;
-          history = [originalXml];
-          historyIndex = 0;
-          refreshHistoryButtons();
-          sync();
-          updateStateIndicator("clean");
-          status.dataset.state = "success";
-          status.textContent =
-            result.prUrl && result.requiresManualReview
-              ? (language === "en" ? `Pull request created for manual review: ${result.prUrl}` : `수동 심사용 Pull Request 생성됨: ${result.prUrl}`)
-              : result.prUrl
-                ? (language === "en" ? `Saved and merged: ${result.prUrl}` : `저장 및 머지 완료: ${result.prUrl}`)
-              : "";
-          await refreshVersionHistory();
+          finishSavedEdit({
+            article,
+            problem: {
+              ...problem,
+              sourcePath,
+              xmlText: textarea.value
+            },
+            result,
+            root,
+            route
+          });
         },
         route
       });
@@ -1514,6 +1603,78 @@ import { escapeHtml, normalizeText } from "./utils/text.js";
         window.setTimeout(() => state.closeButton?.click(), 0);
       }
     }
+  }
+
+  function finishSavedEdit({ article, problem, result, root, route }) {
+    const language = route.language;
+    clearArticleState(article);
+    const savedRoot = buildReadyRoot(route, problem, article);
+    root.replaceWith(savedRoot);
+    savedRoot.scrollIntoView({ block: "nearest" });
+    closeExistingSideEditor({ triggerOriginalClose: true });
+    showCoderootToast({
+      href: result.prUrl || "",
+      language,
+      linkText: result.prUrl
+        ? (language === "en" ? "View on GitHub" : "GitHub에서 보기")
+        : "",
+      message: result.requiresManualReview
+        ? (language === "en" ? "Pull request created." : "Pull Request가 생성되었습니다.")
+        : (language === "en" ? "Saved and merged." : "저장 및 머지가 완료되었습니다.")
+    });
+    scheduleApply(900);
+  }
+
+  function showCoderootToast({ href = "", language = "ko", linkText = "", message }) {
+    const container = getToastContainer();
+    const toast = document.createElement("section");
+    toast.className = "coderoot-toast";
+    toast.setAttribute("role", "status");
+    toast.setAttribute("aria-live", "polite");
+
+    const icon = document.createElement("div");
+    icon.className = "coderoot-toast-icon";
+    icon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg>`;
+
+    const copy = document.createElement("div");
+    copy.className = "coderoot-toast-copy";
+    const title = document.createElement("p");
+    title.textContent = message || (language === "en" ? "Saved." : "저장되었습니다.");
+    copy.append(title);
+
+    if (href && linkText) {
+      const link = document.createElement("a");
+      link.href = href;
+      link.target = "_blank";
+      link.rel = "noreferrer noopener";
+      link.textContent = linkText;
+      link.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        void openExternalGitHubUrl(href);
+      });
+      copy.append(link);
+    }
+
+    const close = document.createElement("button");
+    close.type = "button";
+    close.className = "coderoot-toast-close";
+    close.setAttribute("aria-label", language === "en" ? "Dismiss" : "닫기");
+    close.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>`;
+    close.addEventListener("click", () => toast.remove());
+
+    toast.append(icon, copy, close);
+    container.append(toast);
+    window.setTimeout(() => toast.remove(), 8000);
+  }
+
+  function getToastContainer() {
+    const existing = document.querySelector(".coderoot-toast-viewport");
+    if (existing) return existing;
+    const container = document.createElement("div");
+    container.className = "coderoot-toast-viewport";
+    document.body.append(container);
+    return container;
   }
 
   async function createSideEditorPanel(article) {
@@ -1873,26 +2034,120 @@ import { escapeHtml, normalizeText } from "./utils/text.js";
         ...parseProblemXml(xmlText, route, sourcePath),
         xmlText
       };
-      status.dataset.state = "success";
-      delete status.dataset.errorLine;
-      delete status.dataset.errorColumn;
-      status.textContent = "";
+      clearEditorDiagnostics(status);
       return problem;
     } catch (error) {
-      status.dataset.state = "error";
-      if (error.line) {
-        status.dataset.errorLine = String(error.line);
-      } else {
-        delete status.dataset.errorLine;
-      }
-      if (error.column) {
-        status.dataset.errorColumn = String(error.column);
-      } else {
-        delete status.dataset.errorColumn;
-      }
-      status.textContent = error.message || (route.language === "en" ? "The XML is not valid." : "XML이 올바르지 않습니다.");
+      const diagnostics = getEditorDiagnostics(error, route);
+      renderEditorDiagnostics(status, diagnostics, route.language);
       return null;
     }
+  }
+
+  function clearEditorDiagnostics(status) {
+    status.dataset.state = "success";
+    delete status.dataset.errorLine;
+    delete status.dataset.errorColumn;
+    delete status.dataset.errorCount;
+    delete status.dataset.errorJson;
+    delete status.dataset.errorMessage;
+    status.replaceChildren();
+    status.textContent = "";
+  }
+
+  function getEditorDiagnostics(error, route) {
+    const fallbackMessage = route.language === "en" ? "The XML is not valid." : "XML이 올바르지 않습니다.";
+    const rawDiagnostics = Array.isArray(error?.diagnostics) && error.diagnostics.length
+      ? error.diagnostics
+      : [{
+          column: error?.column || null,
+          line: error?.line || null,
+          message: error?.message || fallbackMessage
+        }];
+
+    return rawDiagnostics.map((diagnostic) => ({
+      column: Number(diagnostic.column || 0) || null,
+      line: Number(diagnostic.line || 0) || null,
+      message: normalizeText(diagnostic.message || fallbackMessage)
+    }));
+  }
+
+  function renderEditorDiagnostics(status, diagnostics, language) {
+    const items = diagnostics.length ? diagnostics : [{
+      column: null,
+      line: null,
+      message: language === "en" ? "The XML is not valid." : "XML이 올바르지 않습니다."
+    }];
+    const first = items[0];
+
+    status.dataset.state = "error";
+    status.dataset.errorCount = String(items.length);
+    status.dataset.errorMessage = first.message;
+    status.dataset.errorJson = JSON.stringify(items);
+    if (first.line) {
+      status.dataset.errorLine = String(first.line);
+    } else {
+      delete status.dataset.errorLine;
+    }
+    if (first.column) {
+      status.dataset.errorColumn = String(first.column);
+    } else {
+      delete status.dataset.errorColumn;
+    }
+
+    const details = document.createElement("details");
+    details.className = "coderoot-diagnostics";
+
+    const summary = document.createElement("summary");
+    summary.className = "coderoot-diagnostics-summary";
+    summary.innerHTML = `
+      <span class="coderoot-diagnostics-icon" aria-hidden="true">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" x2="12" y1="8" y2="12"></line><line x1="12" x2="12.01" y1="16" y2="16"></line></svg>
+      </span>
+      <span class="coderoot-diagnostics-title">${language === "en" ? "Errors" : "오류"}</span>
+      <span class="coderoot-diagnostics-count">${items.length}</span>
+      <span class="coderoot-diagnostics-preview">${escapeHtml(first.message)}</span>
+      <span class="coderoot-diagnostics-caret" aria-hidden="true">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
+      </span>
+    `;
+
+    const list = document.createElement("div");
+    list.className = "coderoot-diagnostics-list";
+
+    items.forEach((item, index) => {
+      const row = document.createElement(item.line ? "button" : "div");
+      row.className = "coderoot-diagnostics-item";
+      if (item.line) {
+        row.type = "button";
+        row.dataset.coderootErrorLine = String(item.line);
+      }
+
+      const location = document.createElement("span");
+      location.className = "coderoot-diagnostics-location";
+      location.textContent = item.line
+        ? (language === "en"
+            ? `Ln ${item.line}${item.column ? `, Col ${item.column}` : ""}`
+            : `${item.line}줄${item.column ? `, ${item.column}칸` : ""}`)
+        : (language === "en" ? "XML" : "XML");
+
+      const message = document.createElement("span");
+      message.className = "coderoot-diagnostics-message";
+      message.textContent = item.message;
+
+      const order = document.createElement("span");
+      order.className = "coderoot-diagnostics-order";
+      order.textContent = String(index + 1);
+
+      row.append(order, location, message);
+      list.append(row);
+    });
+
+    details.append(summary, list);
+    status.replaceChildren(details);
+  }
+
+  function getEditorStatusMessage(status) {
+    return status.dataset.errorMessage || status.textContent || "";
   }
 
   function editorErrorFromStatus(status) {
@@ -1901,7 +2156,7 @@ import { escapeHtml, normalizeText } from "./utils/text.js";
     return {
       column: Number(status.dataset.errorColumn || 0) || null,
       line,
-      message: status.textContent || ""
+      message: getEditorStatusMessage(status)
     };
   }
 
@@ -2186,11 +2441,12 @@ import { escapeHtml, normalizeText } from "./utils/text.js";
 
 
   function updateGradientTop(root, article) {
+    const card = getCoderootCard(article);
+    if (!card) return;
     const rootBox = root.getBoundingClientRect();
-    const articleBox = article.getBoundingClientRect();
-    const scrollTop = article.scrollTop || 0;
-    const top = Math.max(0, rootBox.top - articleBox.top + scrollTop - 2);
-    article.style.setProperty("--coderoot-gradient-top", `${top}px`);
+    const cardBox = card.getBoundingClientRect();
+    const top = Math.max(0, rootBox.top - cardBox.top - 2);
+    card.style.setProperty("--coderoot-gradient-top", `${top}px`);
   }
 
   function renderBlock(block) {

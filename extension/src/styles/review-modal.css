@@ -444,6 +444,34 @@
   margin: 0;
 }
 
+.coderoot-token-trust {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 10px 12px;
+}
+
+.coderoot-token-trust p {
+  align-items: flex-start;
+  color: #334155;
+  display: flex;
+  gap: 8px;
+  line-height: 1.45;
+}
+
+.coderoot-token-trust span {
+  background: #22c55e;
+  border-radius: 999px;
+  box-shadow: 0 0 0 3px #dcfce7;
+  flex: 0 0 auto;
+  height: 6px;
+  margin-top: 7px;
+  width: 6px;
+}
+
 .coderoot-token-dialog a {
   color: #6d28d9;
   cursor: pointer;
@@ -487,15 +515,27 @@
   display: inline-flex;
   font-size: 13px;
   font-weight: 900;
+  gap: 6px;
   justify-content: center;
   min-height: 36px;
+  min-width: 112px;
   padding: 9px 13px;
+  white-space: nowrap;
 }
 
 .coderoot-token-primary {
   background: #7c3aed;
   border: 1px solid #6d28d9;
   color: #ffffff;
+}
+
+.coderoot-token-primary:disabled {
+  cursor: not-allowed;
+  opacity: 0.68;
+}
+
+.coderoot-token-primary[data-loading="true"] .coderoot-review-spinner {
+  display: inline-block;
 }
 
 .coderoot-token-secondary {

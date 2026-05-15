@@ -29,6 +29,8 @@ const enReadyPath = contentPath("/en/trails/complete/curated-cards/intro-test-pr
 try {
   const styles = readFileSync(resolve("extension/dist/styles.css"), "utf8");
   const styleRequired = [
+    ".coderoot-card-expanded:after",
+    ".coderoot-diagnostics-summary",
     ".coderoot-side-highlight .coderoot-xml-tag",
     ".coderoot-side-highlight .coderoot-xml-attr",
     ".coderoot-side-section[data-coderoot-side-panel=true]"

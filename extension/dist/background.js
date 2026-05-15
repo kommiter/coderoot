@@ -53,11 +53,17 @@
   async function openExternalUrl(rawUrl) {
     const url = new URL(String(rawUrl || ""));
     const githubBase = new URL(GITHUB_CONTENT_URL_BASE);
-    if (url.origin !== githubBase.origin || !url.pathname.startsWith(githubBase.pathname)) {
-      throw new Error("Coderoot can only open configured GitHub content URLs.");
+    const repoPath = getGitHubRepositoryPath(githubBase);
+    if (url.origin !== githubBase.origin || !url.pathname.startsWith(repoPath)) {
+      throw new Error("Coderoot can only open configured GitHub repository URLs.");
     }
     await chrome.tabs.create({ url: url.href });
     return { opened: true };
+  }
+  function getGitHubRepositoryPath(url) {
+    const marker = "/blob/";
+    const index = url.pathname.indexOf(marker);
+    return index >= 0 ? `${url.pathname.slice(0, index)}/` : url.pathname;
   }
   async function requestGitHub({ endpoint, method = "GET", body = null, auth = true }) {
     if (!String(endpoint || "").startsWith("/")) {
